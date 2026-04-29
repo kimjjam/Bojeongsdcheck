@@ -118,6 +118,12 @@ export async function deleteUser(uid: string) {
   await deleteDoc(doc(db, 'users', uid))
 }
 
+export async function getStudentByUid(uid: string): Promise<AppUser | null> {
+  const snap = await getDoc(doc(db, 'users', uid))
+  if (!snap.exists()) return null
+  return toAppUser(snap.id, snap.data())
+}
+
 export async function getStudentCountPublic(): Promise<number> {
   const studentsQuery = query(collection(db, 'users'), where('role', '==', 'student'))
   const countSnap = await getCountFromServer(studentsQuery)

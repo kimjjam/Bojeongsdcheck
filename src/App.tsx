@@ -22,7 +22,7 @@ function PageLoading() {
 }
 
 export default function App() {
-  const { user, loading, error, login, logout } = useAuth()
+  const { user, loading, error, login, studentLogin, selectStudent, logout } = useAuth()
 
   if (loading) {
     return <PageLoading />
@@ -33,13 +33,19 @@ export default function App() {
       <Suspense fallback={<PageLoading />}>
         <Routes>
           {/* 로그인 없이 접근 가능 */}
-          <Route path="/kiosk"   element={<AttendanceKioskPage />} />
+          <Route path="/attend"  element={<AttendanceKioskPage />} />
+          <Route path="/kiosk"   element={<Navigate to="/attend" replace />} />
           <Route path="/notices" element={<NoticesBoardPage />} />
 
           {/* 인증 필요 */}
           <Route path="*" element={
             !user ? (
-              <LoginPage onLogin={login} error={error} />
+              <LoginPage
+                onLogin={login}
+                onStudentLogin={studentLogin}
+                onSelectStudent={selectStudent}
+                error={error}
+              />
             ) : (
               <Layout user={user} onLogout={logout}>
                 <Routes>
