@@ -1,5 +1,5 @@
 import {
-  collection, doc, getDoc, getDocs, setDoc, updateDoc,
+  collection, doc, documentId, getDoc, getDocs, setDoc, updateDoc,
   deleteDoc, serverTimestamp, Timestamp, onSnapshot,
   query, orderBy, limit, where, getCountFromServer
 } from 'firebase/firestore'
@@ -253,7 +253,9 @@ export async function deleteNotice(id: string) {
 // ─── Attendance History ───────────────────────────────────────────────────────
 
 export async function getUserAttendanceHistory(uid: string): Promise<{ weekId: string; present: boolean }[]> {
-  const weeksSnap = await getDocs(collection(db, 'attendance'))
+  const weeksSnap = await getDocs(
+    query(collection(db, 'attendance'), orderBy(documentId(), 'desc'), limit(26))
+  )
   const results = await Promise.all(
     weeksSnap.docs.map(async weekDoc => {
       const recordSnap = await getDoc(doc(db, 'attendance', weekDoc.id, 'records', uid))
@@ -263,7 +265,7 @@ export async function getUserAttendanceHistory(uid: string): Promise<{ weekId: s
       }
     })
   )
-  return results.sort((a, b) => b.weekId.localeCompare(a.weekId))
+  return results
 }
 
 // ─── Birthday / Feast Day ─────────────────────────────────────────────────────

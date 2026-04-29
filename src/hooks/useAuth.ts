@@ -48,7 +48,7 @@ export function useAuth() {
       if (firebaseUser) {
         const snap = await getDoc(doc(db, 'users', firebaseUser.uid))
         if (snap.exists()) {
-          setUser({ uid: firebaseUser.uid, ...snap.data() } as AppUser)
+          setUser({ uid: firebaseUser.uid, email: firebaseUser.email ?? '', ...snap.data() } as AppUser)
         }
       } else {
         setUser(null)
@@ -88,7 +88,11 @@ export function useAuth() {
   }
 
   const selectStudent = async (uid: string) => {
-    await applyStudentSession(uid)
+    try {
+      await applyStudentSession(uid)
+    } catch {
+      setError('학생 선택 중 문제가 발생했습니다. 다시 시도해주세요.')
+    }
   }
 
   const applyStudentSession = async (uid: string) => {
