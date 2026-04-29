@@ -3,6 +3,7 @@ export type StudentGroup = '전례부' | '성가대' | '반주단'
 
 export interface AppUser {
   uid: string
+  email: string
   name: string
   baptismalName?: string
   role: UserRole
