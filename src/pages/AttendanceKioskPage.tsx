@@ -1,100 +1,92 @@
 import { useState, useEffect, useRef } from 'react'
 import {
-  getStudentsPublic, getAttendance, markAttendance,
-  getThisWeekId, onKioskSessionChange
+  getStudentsPublic, getAttendance, getThisWeekId, onKioskSessionChange,
+  submitPendingAttendance, onAttendanceRecord, onPendingRequestChange,
 } from '../lib/firestore'
 import type { AppUser } from '../types'
 
 type Student = Pick<AppUser, 'uid' | 'name' | 'baptismalName' | 'grade' | 'birthDate'>
-
-const LS_KEY = 'kiosk_student'
-
-type Step = 'search' | 'verify' | 'ready' | 'done'
+type Step = 'input' | 'select' | 'confirm' | 'waiting' | 'done' | 'rejected'
 
 export default function AttendanceKioskPage() {
-  const [kioskOpen, setKioskOpen] = useState<boolean | null>(null) // null = loading
+  const [kioskOpen, setKioskOpen] = useState<boolean | null>(null)
   const [students, setStudents] = useState<Student[]>([])
   const [attendance, setAttendance] = useState<Record<string, boolean>>({})
-  const [query, setQuery] = useState('')
-  const [selected, setSelected] = useState<Student | null>(null)
-  const [step, setStep] = useState<Step>('search')
   const [birthInput, setBirthInput] = useState('')
-  const [birthError, setBirthError] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const [inputError, setInputError] = useState('')
+  const [matches, setMatches] = useState<Student[]>([])
+  const [selected, setSelected] = useState<Student | null>(null)
+  const [step, setStep] = useState<Step>('input')
   const weekId = getThisWeekId()
-
-  // 로컬 저장된 학생
-  const savedStudent: Student | null = (() => {
-    try { return JSON.parse(localStorage.getItem(LS_KEY) ?? 'null') } catch { return null }
-  })()
+  const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    // 키오스크 세션 실시간 감지
     const unsub = onKioskSessionChange(s => setKioskOpen(s.isOpen))
-
     Promise.all([getStudentsPublic(), getAttendance(weekId)]).then(([sts, records]) => {
       setStudents(sts)
       const map: Record<string, boolean> = {}
       records.forEach(r => { map[r.uid] = r.present })
       setAttendance(map)
     })
-
     return () => unsub()
   }, [weekId])
 
-  // 로컬 세션 있으면 바로 ready
+  // waiting 상태: 출석 승인 또는 거절 실시간 감지
   useEffect(() => {
-    if (savedStudent && students.length > 0) {
-      const match = students.find(s => s.uid === savedStudent.uid)
-      if (match) { setSelected(match); setStep('ready') }
-    }
-  }, [students])
+    if (step !== 'waiting' || !selected) return
+    const unsubAttendance = onAttendanceRecord(weekId, selected.uid, present => {
+      if (present) setStep('done')
+    })
+    const unsubPending = onPendingRequestChange(weekId, selected.uid, req => {
+      if (req?.status === 'rejected') {
+        setStep('rejected')
+        setTimeout(() => reset(), 3500)
+      }
+    })
+    return () => { unsubAttendance(); unsubPending() }
+  }, [step, selected, weekId])
 
-  const filtered = query.trim().length > 0
-    ? students.filter(s => s.name.includes(query.trim()))
-    : []
+  // done 상태: 4초 후 자동 리셋
+  useEffect(() => {
+    if (step !== 'done') return
+    const t = setTimeout(() => reset(), 4000)
+    return () => clearTimeout(t)
+  }, [step])
 
-  const handleSelect = (s: Student) => {
-    setSelected(s); setQuery(s.name); setBirthInput(''); setBirthError(false)
-    // 생년월일이 없으면 바로 ready (임시)
-    setStep(s.birthDate ? 'verify' : 'ready')
-  }
-
-  const handleVerify = () => {
-    if (!selected) return
-    if (birthInput === selected.birthDate) {
-      localStorage.setItem(LS_KEY, JSON.stringify(selected))
-      setStep('ready')
-    } else {
-      setBirthError(true)
+  const handleBirthSubmit = () => {
+    if (birthInput.length !== 6) return
+    const found = students.filter(s => s.birthDate === birthInput)
+    if (found.length === 0) {
+      setInputError('일치하는 학생이 없습니다. 다시 확인해주세요.')
       setBirthInput('')
+      return
+    }
+    setMatches(found)
+    setInputError('')
+    if (found.length === 1) {
+      setSelected(found[0])
+      setStep('confirm')
+    } else {
+      setStep('select')
     }
   }
 
-  const handleCheck = async () => {
+  const handleRequestAttendance = async () => {
     if (!selected) return
-    setSaving(true)
-    await markAttendance(weekId, selected.uid, true)
-    setAttendance(prev => ({ ...prev, [selected.uid]: true }))
-    setSaving(false)
-    setStep('done')
-    setTimeout(() => reset(), 3000)
+    await submitPendingAttendance(weekId, selected.uid)
+    setStep('waiting')
   }
 
   const reset = () => {
-    setSelected(null); setQuery(''); setBirthInput(''); setBirthError(false)
-    setStep('search'); inputRef.current?.focus()
-  }
-
-  const clearLocal = () => {
-    localStorage.removeItem(LS_KEY); reset()
+    setSelected(null); setBirthInput(''); setMatches([]); setInputError('')
+    setStep('input')
+    setTimeout(() => inputRef.current?.focus(), 100)
   }
 
   const alreadyChecked = selected ? attendance[selected.uid] === true : false
   const presentCount = Object.values(attendance).filter(Boolean).length
 
-  // ── 로딩 ──────────────────────────────────────────────────────────────────
+  // ── 로딩 ──────────────────────────────────────────────────────────────────────
   if (kioskOpen === null) {
     return (
       <div className="min-h-screen bg-[#1e3a5f] flex items-center justify-center">
@@ -103,7 +95,7 @@ export default function AttendanceKioskPage() {
     )
   }
 
-  // ── 키오스크 닫힘 ──────────────────────────────────────────────────────────
+  // ── 키오스크 닫힘 ──────────────────────────────────────────────────────────────
   if (!kioskOpen) {
     return (
       <div className="min-h-screen bg-[#1e3a5f] flex flex-col items-center justify-center px-6 text-center">
@@ -115,15 +107,29 @@ export default function AttendanceKioskPage() {
     )
   }
 
-  // ── 출석 완료 ──────────────────────────────────────────────────────────────
+  // ── 출석 완료 ──────────────────────────────────────────────────────────────────
   if (step === 'done' && selected) {
     return (
       <div className="min-h-screen bg-[#1e3a5f] flex flex-col items-center justify-center">
-        <div className="bg-white rounded-2xl p-8 text-center w-72 space-y-2">
-          <div className="text-5xl">✅</div>
-          <p className="text-xl font-bold text-gray-800">{selected.name}</p>
+        <div className="bg-white rounded-2xl p-8 text-center w-72 space-y-3">
+          <div className="text-6xl">✅</div>
+          <p className="text-2xl font-bold text-gray-800">{selected.name}</p>
           {selected.baptismalName && <p className="text-blue-600 font-medium">{selected.baptismalName}</p>}
-          <p className="text-green-600 font-semibold">출석 완료!</p>
+          <p className="text-green-600 font-semibold text-lg">출석 완료!</p>
+        </div>
+      </div>
+    )
+  }
+
+  // ── 거절됨 ────────────────────────────────────────────────────────────────────
+  if (step === 'rejected' && selected) {
+    return (
+      <div className="min-h-screen bg-[#1e3a5f] flex flex-col items-center justify-center">
+        <div className="bg-white rounded-2xl p-8 text-center w-72 space-y-3">
+          <div className="text-5xl">❌</div>
+          <p className="text-xl font-bold text-gray-800">{selected.name}</p>
+          <p className="text-red-500 font-medium">출석 요청이 거절되었습니다</p>
+          <p className="text-gray-400 text-sm">선생님께 문의하세요</p>
         </div>
       </div>
     )
@@ -140,90 +146,89 @@ export default function AttendanceKioskPage() {
           <p className="text-blue-200 text-sm mt-1">{weekId} 미사</p>
         </div>
 
-        {/* 로컬 세션: 바로 체크인 */}
-        {step === 'ready' && selected && (
+        {/* 생년월일 입력 */}
+        {step === 'input' && (
           <div className="bg-white rounded-2xl p-5 space-y-4">
-            <div className="text-center">
-              <p className="text-lg font-bold text-gray-800">{selected.name}</p>
-              {selected.baptismalName && <p className="text-blue-600 font-medium">{selected.baptismalName}</p>}
-              <p className="text-sm text-gray-400">{selected.grade}</p>
+            <div>
+              <p className="text-sm font-medium text-gray-700 text-center mb-1">생년월일 6자리를 입력하세요</p>
+              <p className="text-xs text-gray-400 text-center mb-3">예: 2013년 5월 15일 → 130515</p>
+              <input
+                ref={inputRef}
+                type="tel"
+                maxLength={6}
+                value={birthInput}
+                onChange={e => { setBirthInput(e.target.value.replace(/\D/g, '')); setInputError('') }}
+                onKeyDown={e => e.key === 'Enter' && handleBirthSubmit()}
+                placeholder="YYMMDD"
+                className={`w-full border-2 rounded-xl px-4 py-4 text-center text-3xl tracking-widest font-mono ${
+                  inputError ? 'border-red-400 bg-red-50' : 'border-gray-200 focus:border-[#1e3a5f]'
+                } focus:outline-none`}
+                autoFocus
+              />
+              {inputError && <p className="text-red-500 text-sm text-center mt-2">{inputError}</p>}
             </div>
-            {alreadyChecked ? (
-              <div className="bg-green-50 rounded-xl py-3 text-center">
-                <p className="text-green-600 font-medium">이미 출석 완료</p>
-              </div>
-            ) : (
-              <button onClick={handleCheck} disabled={saving}
-                className="w-full bg-[#1e3a5f] text-white rounded-xl py-4 text-lg font-bold disabled:opacity-60">
-                {saving ? '처리 중...' : '출석 확인'}
-              </button>
-            )}
-            <button onClick={clearLocal} className="w-full text-sm text-gray-400 border border-gray-200 rounded-xl py-2">
-              다른 학생으로 체크인
+            <button
+              onClick={handleBirthSubmit}
+              disabled={birthInput.length !== 6}
+              className="w-full bg-[#1e3a5f] text-white rounded-xl py-4 font-bold text-lg disabled:opacity-40 transition"
+            >
+              확인
             </button>
           </div>
         )}
 
-        {/* 이름 검색 */}
-        {step === 'search' && (
-          <>
-            <div className="relative">
-              <input ref={inputRef} type="text" value={query}
-                onChange={e => { setQuery(e.target.value); setSelected(null) }}
-                placeholder="이름을 입력하세요"
-                className="w-full rounded-xl px-4 py-3.5 text-base bg-white focus:outline-none"
-                autoComplete="off"
-              />
-              {query && <button onClick={reset} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xl">×</button>}
-            </div>
-
-            {filtered.length > 0 && (
-              <div className="bg-white rounded-xl overflow-hidden shadow-lg">
-                {filtered.map(s => (
-                  <button key={s.uid} onClick={() => handleSelect(s)}
-                    className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-blue-50 border-b border-gray-100 last:border-0 text-left">
-                    <div>
-                      <span className="font-medium text-gray-800">{s.name}</span>
-                      {s.baptismalName && <span className="ml-2 text-blue-600 font-medium">{s.baptismalName}</span>}
-                    </div>
-                    <span className="text-xs text-gray-400">{s.grade}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-            {filtered.length === 0 && query.trim().length > 0 && (
-              <p className="text-center text-blue-200 text-sm">검색 결과가 없습니다</p>
-            )}
-          </>
+        {/* 동일 생년월일 학생 선택 */}
+        {step === 'select' && (
+          <div className="bg-white rounded-2xl p-5 space-y-3">
+            <p className="text-sm font-medium text-gray-600 text-center">해당하는 학생을 선택하세요</p>
+            {matches.map(s => (
+              <button key={s.uid} onClick={() => { setSelected(s); setStep('confirm') }}
+                className="w-full flex items-center justify-between px-4 py-4 border border-gray-200 rounded-xl hover:bg-blue-50 text-left transition">
+                <div>
+                  <span className="font-bold text-gray-800 text-lg">{s.name}</span>
+                  {s.baptismalName && <span className="ml-2 text-blue-600">{s.baptismalName}</span>}
+                </div>
+                <span className="text-xs text-gray-400 shrink-0">{s.grade}</span>
+              </button>
+            ))}
+            <button onClick={reset} className="w-full text-sm text-gray-400 pt-1">← 다시 입력</button>
+          </div>
         )}
 
-        {/* 생년월일 인증 */}
-        {step === 'verify' && selected && (
-          <div className="bg-white rounded-2xl p-5 space-y-4">
-            <div className="text-center">
-              <p className="text-lg font-bold text-gray-800">{selected.name}</p>
-              {selected.baptismalName && <p className="text-blue-600">{selected.baptismalName}</p>}
+        {/* 학생 확인 */}
+        {step === 'confirm' && selected && (
+          <div className="bg-white rounded-2xl p-6 space-y-5">
+            <div className="text-center space-y-1">
+              <p className="text-3xl font-bold text-gray-800">{selected.name}</p>
+              {selected.baptismalName && <p className="text-blue-600 font-medium">{selected.baptismalName}</p>}
+              <p className="text-sm text-gray-400">{selected.grade}</p>
             </div>
-            <div>
-              <p className="text-sm text-gray-600 mb-2 text-center">생년월일 6자리를 입력하세요</p>
-              <p className="text-xs text-gray-400 text-center mb-3">예: 2013년 5월 15일 → 130515</p>
-              <input
-                type="tel" maxLength={6} value={birthInput}
-                onChange={e => { setBirthInput(e.target.value.replace(/\D/g, '')); setBirthError(false) }}
-                onKeyDown={e => e.key === 'Enter' && handleVerify()}
-                placeholder="YYMMDD"
-                className={`w-full border-2 rounded-xl px-4 py-3 text-center text-2xl tracking-widest font-mono ${
-                  birthError ? 'border-red-400 bg-red-50' : 'border-gray-200'
-                }`}
-                autoFocus
-              />
-              {birthError && <p className="text-red-500 text-sm text-center mt-1">생년월일이 일치하지 않습니다</p>}
-            </div>
-            <button onClick={handleVerify} disabled={birthInput.length !== 6}
-              className="w-full bg-[#1e3a5f] text-white rounded-xl py-3 font-bold disabled:opacity-40">
-              확인
+            {alreadyChecked ? (
+              <div className="bg-green-50 border border-green-200 rounded-xl py-4 text-center">
+                <p className="text-green-600 font-semibold">이미 출석 완료되었습니다</p>
+              </div>
+            ) : (
+              <button
+                onClick={handleRequestAttendance}
+                className="w-full bg-[#1e3a5f] text-white rounded-xl py-4 text-lg font-bold transition hover:bg-[#16305a]"
+              >
+                출석 요청
+              </button>
+            )}
+            <button onClick={reset} className="w-full text-sm text-gray-400 border border-gray-200 rounded-xl py-2.5">
+              ← 다시 입력
             </button>
-            <button onClick={reset} className="w-full text-sm text-gray-400">← 다시 검색</button>
+          </div>
+        )}
+
+        {/* 교사 승인 대기 */}
+        {step === 'waiting' && selected && (
+          <div className="bg-white rounded-2xl p-8 space-y-4 text-center">
+            <div className="text-5xl animate-pulse">⏳</div>
+            <p className="text-2xl font-bold text-gray-800">{selected.name}</p>
+            {selected.baptismalName && <p className="text-blue-600">{selected.baptismalName}</p>}
+            <p className="text-gray-600 font-medium mt-2">선생님 확인 중...</p>
+            <p className="text-gray-400 text-sm">잠시 기다려주세요</p>
           </div>
         )}
 

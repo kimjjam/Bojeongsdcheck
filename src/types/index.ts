@@ -10,6 +10,8 @@ export interface AppUser {
   grade?: string
   groups?: StudentGroup[]
   birthDate?: string // "YYMMDD" 6자리 (예: "130515")
+  phone?: string
+  feastDay?: string // "MM.DD" 형식 (예: "07.25")
 }
 
 export interface WeekData {
@@ -54,6 +56,12 @@ export interface Notice {
 export interface KioskSession {
   isOpen: boolean
   openedAt: Date | null
+}
+
+export interface PendingRequest {
+  uid: string
+  requestedAt: Date
+  status: 'pending' | 'rejected'
 }
 
 export type LiturgyRole =

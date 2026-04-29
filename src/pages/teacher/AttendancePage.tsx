@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react'
-import { getAllUsers, getAttendance, markAttendance, getThisWeekId, getWeekList, getKioskSession, setKioskOpen } from '../../lib/firestore'
-import type { AppUser, AttendanceRecord } from '../../types'
+import {
+  getAllUsers, getAttendance, markAttendance, getThisWeekId, getWeekList,
+  getKioskSession, setKioskOpen,
+  onPendingAttendanceChange, approvePendingAttendance, rejectPendingAttendance,
+} from '../../lib/firestore'
+import type { AppUser, AttendanceRecord, PendingRequest } from '../../types'
 
 const GRADE_ORDER = ['중1', '중2', '중3', '고1', '고2', '고3']
 
@@ -12,6 +16,8 @@ export default function TeacherAttendancePage() {
   const [loading, setLoading] = useState(true)
   const [kioskOpen, setKioskOpenState] = useState(false)
   const [kioskToggling, setKioskToggling] = useState(false)
+  const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([])
+  const [processingUids, setProcessingUids] = useState<Set<string>>(new Set())
 
   const loadData = async (wid: string) => {
     setLoading(true)
@@ -32,6 +38,14 @@ export default function TeacherAttendancePage() {
     loadData(weekId)
   }, [])
 
+  // 대기 요청 실시간 감지 (선택된 주차 기준)
+  useEffect(() => {
+    const unsub = onPendingAttendanceChange(weekId, reqs => {
+      setPendingRequests(reqs.filter(r => r.status === 'pending'))
+    })
+    return () => unsub()
+  }, [weekId])
+
   const toggle = async (uid: string) => {
     const current = attendance[uid]?.present ?? false
     await markAttendance(weekId, uid, !current)
@@ -49,6 +63,23 @@ export default function TeacherAttendancePage() {
     setKioskToggling(false)
   }
 
+  const handleApprove = async (uid: string) => {
+    setProcessingUids(prev => new Set(prev).add(uid))
+    await approvePendingAttendance(weekId, uid)
+    setAttendance(prev => ({
+      ...prev,
+      [uid]: { uid, present: true, timestamp: new Date() },
+    }))
+    setProcessingUids(prev => { const s = new Set(prev); s.delete(uid); return s })
+  }
+
+  const handleReject = async (uid: string) => {
+    setProcessingUids(prev => new Set(prev).add(uid))
+    await rejectPendingAttendance(weekId, uid)
+    setProcessingUids(prev => { const s = new Set(prev); s.delete(uid); return s })
+  }
+
+  const studentMap = Object.fromEntries(students.map(s => [s.uid, s]))
   const presentCount = students.filter(s => attendance[s.uid]?.present).length
   const grouped = students.reduce<Record<string, AppUser[]>>((acc, s) => {
     const g = s.grade ?? '기타'
@@ -66,7 +97,7 @@ export default function TeacherAttendancePage() {
           <div>
             <p className="text-sm font-semibold text-gray-800">출석 키오스크</p>
             <p className={`text-xs mt-0.5 ${kioskOpen ? 'text-green-600' : 'text-gray-400'}`}>
-              {kioskOpen ? '🟢 현재 열려 있음 — 학생들이 출석 체크 가능' : '🔴 닫혀 있음 — 학생들이 접근 불가'}
+              {kioskOpen ? '🟢 현재 열려 있음 — 학생들이 출석 요청 가능' : '🔴 닫혀 있음 — 학생들이 접근 불가'}
             </p>
           </div>
           <button
@@ -87,6 +118,51 @@ export default function TeacherAttendancePage() {
         )}
       </div>
 
+      {/* 출석 대기 요청 */}
+      {pendingRequests.length > 0 && (
+        <div className="bg-amber-50 border border-amber-300 rounded-xl overflow-hidden">
+          <div className="bg-amber-400 px-4 py-2 flex items-center gap-2">
+            <span className="text-white font-bold text-sm">출석 대기</span>
+            <span className="bg-white text-amber-600 text-xs font-bold px-2 py-0.5 rounded-full">{pendingRequests.length}</span>
+          </div>
+          <ul className="divide-y divide-amber-100">
+            {pendingRequests.map(req => {
+              const student = studentMap[req.uid]
+              const processing = processingUids.has(req.uid)
+              return (
+                <li key={req.uid} className="flex items-center justify-between px-4 py-3 gap-3">
+                  <div className="flex-1 min-w-0">
+                    <span className="font-bold text-gray-800">
+                      {student ? student.name : req.uid}
+                    </span>
+                    {student?.baptismalName && (
+                      <span className="ml-2 text-blue-600 text-sm">{student.baptismalName}</span>
+                    )}
+                    <span className="ml-2 text-xs text-gray-400">{student?.grade}</span>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() => handleApprove(req.uid)}
+                      disabled={processing}
+                      className="bg-green-500 text-white text-sm font-semibold px-4 py-1.5 rounded-lg disabled:opacity-50 transition"
+                    >
+                      승인
+                    </button>
+                    <button
+                      onClick={() => handleReject(req.uid)}
+                      disabled={processing}
+                      className="bg-red-400 text-white text-sm font-semibold px-4 py-1.5 rounded-lg disabled:opacity-50 transition"
+                    >
+                      거절
+                    </button>
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold text-gray-800">출석 현황</h2>
         <select className="border rounded-lg px-2 py-1.5 text-sm" value={weekId}
@@ -106,24 +182,33 @@ export default function TeacherAttendancePage() {
       {loading ? (
         <div className="text-center py-10 text-gray-400">불러오는 중...</div>
       ) : (
-        Object.entries(grouped).sort(([a], [b]) => GRADE_ORDER.indexOf(a) - GRADE_ORDER.indexOf(b)).map(([grade, list]) => (
-          <div key={grade} className="bg-white rounded-xl shadow-sm overflow-hidden">
-            <div className="bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-600">{grade} ({list.length}명)</div>
-            <ul className="divide-y divide-gray-100">
-              {list.map(s => {
-                const present = attendance[s.uid]?.present ?? false
-                return (
-                  <li key={s.uid} className="flex items-center justify-between px-4 py-3 cursor-pointer" onClick={() => toggle(s.uid)}>
-                    <span className="font-medium text-gray-800">{s.name}</span>
-                    <span className={`text-sm font-semibold px-3 py-1 rounded-full ${present ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
-                      {present ? '출석' : '결석'}
-                    </span>
-                  </li>
-                )
-              })}
-            </ul>
-          </div>
-        ))
+        Object.entries(grouped)
+          .sort(([a], [b]) => GRADE_ORDER.indexOf(a) - GRADE_ORDER.indexOf(b))
+          .map(([grade, list]) => (
+            <div key={grade} className="bg-white rounded-xl shadow-sm overflow-hidden">
+              <div className="bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-600">{grade} ({list.length}명)</div>
+              <ul className="divide-y divide-gray-100">
+                {list.map(s => {
+                  const present = attendance[s.uid]?.present ?? false
+                  const isPending = pendingRequests.some(r => r.uid === s.uid)
+                  return (
+                    <li key={s.uid}
+                      className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-gray-50"
+                      onClick={() => toggle(s.uid)}>
+                      <span className="font-medium text-gray-800">{s.name}</span>
+                      <span className={`text-sm font-semibold px-3 py-1 rounded-full ${
+                        present ? 'bg-green-100 text-green-700'
+                        : isPending ? 'bg-amber-100 text-amber-600'
+                        : 'bg-gray-100 text-gray-400'
+                      }`}>
+                        {present ? '출석' : isPending ? '대기' : '결석'}
+                      </span>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          ))
       )}
     </div>
   )

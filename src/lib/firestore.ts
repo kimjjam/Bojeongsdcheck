@@ -4,7 +4,7 @@ import {
   query, orderBy, limit
 } from 'firebase/firestore'
 import { db } from './firebase'
-import type { AppUser, WeekData, Assignment, AttendanceRecord, Notice, KioskSession } from '../types'
+import type { AppUser, WeekData, Assignment, AttendanceRecord, Notice, KioskSession, PendingRequest } from '../types'
 import { SAINTS_FEAST_DAYS } from './saints'
 
 // ─── 정렬 헬퍼 ────────────────────────────────────────────────────────────────
@@ -200,6 +200,51 @@ export async function getTodaySpecialStudents(): Promise<{ birthday: AppUser[]; 
   })
 
   return { birthday, feastDay }
+}
+
+// ─── Pending Attendance (교사 승인 대기) ──────────────────────────────────────
+
+export async function submitPendingAttendance(weekId: string, uid: string) {
+  await setDoc(doc(db, 'pendingAttendance', weekId, 'requests', uid), {
+    uid, requestedAt: serverTimestamp(), status: 'pending',
+  })
+}
+
+export function onPendingAttendanceChange(weekId: string, cb: (requests: PendingRequest[]) => void) {
+  return onSnapshot(collection(db, 'pendingAttendance', weekId, 'requests'), snap => {
+    cb(snap.docs.map(d => ({
+      uid: d.id,
+      requestedAt: d.data().requestedAt instanceof Timestamp ? d.data().requestedAt.toDate() : new Date(),
+      status: d.data().status as PendingRequest['status'],
+    })))
+  })
+}
+
+export async function approvePendingAttendance(weekId: string, uid: string) {
+  await markAttendance(weekId, uid, true)
+  await deleteDoc(doc(db, 'pendingAttendance', weekId, 'requests', uid))
+}
+
+export async function rejectPendingAttendance(weekId: string, uid: string) {
+  await updateDoc(doc(db, 'pendingAttendance', weekId, 'requests', uid), { status: 'rejected' })
+}
+
+export function onAttendanceRecord(weekId: string, uid: string, cb: (present: boolean) => void) {
+  return onSnapshot(doc(db, 'attendance', weekId, 'records', uid), snap => {
+    cb(snap.exists() ? (snap.data().present ?? false) : false)
+  })
+}
+
+export function onPendingRequestChange(weekId: string, uid: string, cb: (req: PendingRequest | null) => void) {
+  return onSnapshot(doc(db, 'pendingAttendance', weekId, 'requests', uid), snap => {
+    if (!snap.exists()) { cb(null); return }
+    const d = snap.data()
+    cb({
+      uid: snap.id,
+      requestedAt: d.requestedAt instanceof Timestamp ? d.requestedAt.toDate() : new Date(),
+      status: d.status as PendingRequest['status'],
+    })
+  })
 }
 
 export function onNoticesChange(cb: (notices: Notice[]) => void) {
