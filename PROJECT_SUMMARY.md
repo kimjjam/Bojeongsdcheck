@@ -11,9 +11,9 @@
 
 | 항목 | 내용 |
 |------|------|
-| 프레임워크 | React 18 + TypeScript + Vite |
+| 프레임워크 | React 19 + TypeScript + Vite |
 | 스타일 | Tailwind CSS |
-| 라우팅 | React Router v6 |
+| 라우팅 | React Router v7 |
 | 백엔드/DB | Firebase (Firestore + Auth) |
 | 배포 | dist/ 빌드 후 정적 호스팅 |
 
@@ -38,7 +38,7 @@ VITE_FIREBASE_APP_ID
 src/
 ├── App.tsx                        # 라우팅 진입점, 인증 분기
 ├── main.tsx
-├── index.css / App.css
+├── index.css
 ├── hooks/
 │   └── useAuth.ts                 # Firebase Auth 상태 관리
 ├── lib/
@@ -59,7 +59,6 @@ src/
     │   ├── LiturgyPage.tsx         # 전례 본문 관리
     │   └── NoticesPage.tsx         # 알림장 작성/관리
     └── student/
-        ├── AttendancePage.tsx      # 출석 현황 (학생용)
         └── MyRolePage.tsx          # 내 전례 역할 확인
 ```
 
@@ -118,7 +117,6 @@ LiturgyRole = 'narrator' | 'acolyte_1' | 'acolyte_2' | 'intercession_1~4' | null
 
 ## 최근 변경 이력
 
-- 2026-04-29 프로젝트 최초 분석 및 PROJECT_SUMMARY.md 생성
-- 2026-04-29 포인트/스탬프, 전례역할알림, 생일/축일알림, 간식/행사 기능 추가
-  - 신규: `src/lib/saints.ts`, `src/hooks/useAttendanceStats.ts`
-  - 수정: `types/index.ts`(WeekData snack/events 필드), `firestore.ts`(getUserAttendanceHistory, getTodaySpecialStudents), `student/MyRolePage.tsx`, `teacher/LiturgyPage.tsx`, `teacher/StudentsPage.tsx`
+- 2026-04-29 React 19 / Router 7 기준으로 문서와 실제 코드 정합성 수정, 미사용 학생 출석 페이지 및 Vite 기본 자산 정리
+- 2026-04-29 `weekId`를 KST 기준으로 계산하도록 수정하고, 역할 배정/출석/전례/알림장 페이지의 React Hooks lint 이슈 정리
+- 2026-04-29 키오스크 공개 데이터 최소화, 축일 계산을 `feastDay` 우선으로 보정, 학생 일괄 등록 스크립트를 `.env` + 비공개 JSON 입력 방식으로 전환

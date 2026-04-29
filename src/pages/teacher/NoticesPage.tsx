@@ -17,7 +17,19 @@ export default function TeacherNoticesPage() {
   const [sent, setSent] = useState(false)
 
   const load = async () => setNotices(await getNotices())
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    let cancelled = false
+
+    void (async () => {
+      const nextNotices = await getNotices()
+      if (cancelled) return
+      setNotices(nextNotices)
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault()

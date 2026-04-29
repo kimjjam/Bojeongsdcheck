@@ -1,0 +1,11 @@
+[
+  {
+    "grade": "중1",
+    "name": "홍길동",
+    "baptismalName": "요한",
+    "phone": "",
+    "feastDay": "12.27",
+    "groups": ["전례부"],
+    "birthDate": "130101"
+  }
+]

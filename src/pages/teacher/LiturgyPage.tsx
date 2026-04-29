@@ -20,28 +20,48 @@ export default function LiturgyPage() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
-  const loadWeek = async (wid: string) => {
-    const data = await getWeekData(wid)
-    if (data) {
-      setReadings1(data.readings1 ?? '')
-      setReadings2(data.readings2 ?? '')
-      setIntercessions(data.intercessions as Record<number, string> ?? EMPTY.intercessions)
-      setSnack(data.snack ?? '')
-      setEventsText(data.events?.join('\n') ?? '')
-    } else {
-      setReadings1(''); setReadings2('')
-      setIntercessions({ 1: '', 2: '', 3: '', 4: '' })
-      setSnack(''); setEventsText('')
-    }
-  }
-
   useEffect(() => {
-    getWeekList().then(list => {
+    let cancelled = false
+
+    void (async () => {
+      const list = await getWeekList()
+      if (cancelled) return
       const merged = Array.from(new Set([getThisWeekId(), ...list])).sort().reverse()
       setWeekList(merged)
-    })
-    loadWeek(weekId)
+    })()
+
+    return () => {
+      cancelled = true
+    }
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    void (async () => {
+      const data = await getWeekData(weekId)
+      if (cancelled) return
+
+      if (data) {
+        setReadings1(data.readings1 ?? '')
+        setReadings2(data.readings2 ?? '')
+        setIntercessions(data.intercessions as Record<number, string> ?? EMPTY.intercessions)
+        setSnack(data.snack ?? '')
+        setEventsText(data.events?.join('\n') ?? '')
+        return
+      }
+
+      setReadings1('')
+      setReadings2('')
+      setIntercessions({ 1: '', 2: '', 3: '', 4: '' })
+      setSnack('')
+      setEventsText('')
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [weekId])
 
   const handleSave = async () => {
     setSaving(true)
@@ -63,7 +83,7 @@ export default function LiturgyPage() {
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold text-gray-800">전례 내용</h2>
         <select className="border rounded-lg px-2 py-1.5 text-sm" value={weekId}
-          onChange={e => { setWeekId(e.target.value); loadWeek(e.target.value) }}>
+          onChange={e => setWeekId(e.target.value)}>
           {weekList.map(w => <option key={w} value={w}>{w}</option>)}
         </select>
       </div>

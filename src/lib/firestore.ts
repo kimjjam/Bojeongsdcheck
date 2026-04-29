@@ -1,10 +1,20 @@
 import {
   collection, doc, getDoc, getDocs, setDoc, updateDoc,
   deleteDoc, serverTimestamp, Timestamp, onSnapshot,
-  query, orderBy, limit
+  query, orderBy, limit, where, getCountFromServer
 } from 'firebase/firestore'
 import { db } from './firebase'
-import type { AppUser, WeekData, Assignment, AttendanceRecord, Notice, KioskSession, PendingRequest } from '../types'
+import type {
+  AppUser,
+  WeekData,
+  Assignment,
+  AttendanceRecord,
+  Notice,
+  KioskSession,
+  PendingRequest,
+  KioskStudent,
+  StudentGroup,
+} from '../types'
 import { SAINTS_FEAST_DAYS } from './saints'
 
 // ─── 정렬 헬퍼 ────────────────────────────────────────────────────────────────
@@ -16,11 +26,71 @@ function sortUsers(users: AppUser[]) {
   })
 }
 
+function toAppUser(uid: string, data: Record<string, unknown>): AppUser {
+  const groups = Array.isArray(data.groups)
+    ? data.groups.filter((value): value is StudentGroup =>
+      value === '전례부' || value === '성가대' || value === '반주단'
+    )
+    : undefined
+
+  return {
+    uid,
+    email: typeof data.email === 'string' ? data.email : '',
+    name: typeof data.name === 'string' ? data.name : '',
+    baptismalName: typeof data.baptismalName === 'string' ? data.baptismalName : undefined,
+    role: data.role === 'teacher' ? 'teacher' : 'student',
+    grade: typeof data.grade === 'string' ? data.grade : undefined,
+    groups,
+    birthDate: typeof data.birthDate === 'string' ? data.birthDate : undefined,
+    phone: typeof data.phone === 'string' ? data.phone : undefined,
+    feastDay: typeof data.feastDay === 'string' ? data.feastDay : undefined,
+  }
+}
+
+function normalizeAssignmentData(weekId: string, data: Record<string, unknown>): Assignment {
+  const acolytes = Array.isArray(data.acolytes)
+    ? data.acolytes.filter((value): value is string => typeof value === 'string').slice(0, 2)
+    : []
+
+  while (acolytes.length < 2) {
+    acolytes.push('')
+  }
+
+  const rawIntercessions = typeof data.intercessions === 'object' && data.intercessions !== null
+    ? data.intercessions as Record<string, unknown>
+    : {}
+
+  return {
+    weekId,
+    narrator: typeof data.narrator === 'string' ? data.narrator : '',
+    acolytes,
+    intercessions: {
+      1: typeof rawIntercessions['1'] === 'string' ? rawIntercessions['1'] : '',
+      2: typeof rawIntercessions['2'] === 'string' ? rawIntercessions['2'] : '',
+      3: typeof rawIntercessions['3'] === 'string' ? rawIntercessions['3'] : '',
+      4: typeof rawIntercessions['4'] === 'string' ? rawIntercessions['4'] : '',
+    },
+  }
+}
+
+function formatLocalDate(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function normalizeFeastDay(value?: string) {
+  if (!value) return null
+  const digits = value.replace(/\D/g, '')
+  return digits.length === 4 ? digits : null
+}
+
 // ─── Users ────────────────────────────────────────────────────────────────────
 
 export async function getAllUsers(): Promise<AppUser[]> {
   const snap = await getDocs(collection(db, 'users'))
-  return sortUsers(snap.docs.map(d => ({ uid: d.id, ...d.data() } as AppUser)))
+  return sortUsers(snap.docs.map(d => toAppUser(d.id, d.data())))
 }
 
 /** 학생 등록 (Firebase Auth 없이 Firestore 문서만 생성) */
@@ -33,6 +103,7 @@ export async function createStudent(
 ) {
   const uid = `student_${grade}_${name}_${Date.now()}`
   await setDoc(doc(db, 'users', uid), {
+    email: '',
     name, baptismalName, grade, groups, birthDate,
     role: 'student',
   })
@@ -47,13 +118,26 @@ export async function deleteUser(uid: string) {
   await deleteDoc(doc(db, 'users', uid))
 }
 
-export async function getStudentsPublic(): Promise<AppUser[]> {
-  const snap = await getDocs(collection(db, 'users'))
-  return sortUsers(
-    snap.docs
-      .filter(d => d.data().role === 'student')
-      .map(d => ({ uid: d.id, ...d.data() } as AppUser))
+export async function getStudentCountPublic(): Promise<number> {
+  const studentsQuery = query(collection(db, 'users'), where('role', '==', 'student'))
+  const countSnap = await getCountFromServer(studentsQuery)
+  return countSnap.data().count
+}
+
+export async function findKioskStudentsByBirthDate(birthDate: string): Promise<KioskStudent[]> {
+  const studentsQuery = query(
+    collection(db, 'users'),
+    where('role', '==', 'student'),
+    where('birthDate', '==', birthDate),
   )
+  const snap = await getDocs(studentsQuery)
+  return sortUsers(snap.docs.map(d => toAppUser(d.id, d.data())))
+    .map(({ uid, name, grade, birthDate: userBirthDate }) => ({
+      uid,
+      name,
+      grade,
+      birthDate: userBirthDate,
+    }))
 }
 
 // ─── Week / Liturgy ───────────────────────────────────────────────────────────
@@ -62,7 +146,7 @@ export function getThisWeekId(): string {
   const now = new Date()
   const sunday = new Date(now)
   sunday.setDate(now.getDate() - ((now.getDay() + 7) % 7))
-  return sunday.toISOString().split('T')[0]
+  return formatLocalDate(sunday)
 }
 
 export async function getWeekData(weekId: string): Promise<WeekData | null> {
@@ -85,7 +169,7 @@ export async function getWeekList(): Promise<string[]> {
 export async function getAssignment(weekId: string): Promise<Assignment | null> {
   const snap = await getDoc(doc(db, 'assignments', weekId))
   if (!snap.exists()) return null
-  return { weekId: snap.id, ...snap.data() } as Assignment
+  return normalizeAssignmentData(snap.id, snap.data())
 }
 
 export async function saveAssignment(weekId: string, data: Partial<Omit<Assignment, 'weekId'>>) {
@@ -193,10 +277,11 @@ export async function getTodaySpecialStudents(): Promise<{ birthday: AppUser[]; 
   })
 
   const feastDay = students.filter(u => {
+    const savedFeastDay = normalizeFeastDay(u.feastDay)
+    if (savedFeastDay) return savedFeastDay === todayMMDD
     if (!u.baptismalName) return false
-    const feastDate = SAINTS_FEAST_DAYS[u.baptismalName]
-    if (!feastDate) return false
-    return feastDate.replace('-', '') === todayMMDD
+    const fallbackFeastDay = normalizeFeastDay(SAINTS_FEAST_DAYS[u.baptismalName])
+    return fallbackFeastDay === todayMMDD
   })
 
   return { birthday, feastDay }

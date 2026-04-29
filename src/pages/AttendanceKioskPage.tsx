@@ -1,34 +1,49 @@
 import { useState, useEffect, useRef } from 'react'
 import {
-  getStudentsPublic, getAttendance, getThisWeekId, onKioskSessionChange,
+  findKioskStudentsByBirthDate, getAttendance, getStudentCountPublic, getThisWeekId, onKioskSessionChange,
   submitPendingAttendance, onAttendanceRecord, onPendingRequestChange,
 } from '../lib/firestore'
-import type { AppUser } from '../types'
+import type { KioskStudent } from '../types'
 
-type Student = Pick<AppUser, 'uid' | 'name' | 'baptismalName' | 'grade' | 'birthDate'>
 type Step = 'input' | 'select' | 'confirm' | 'waiting' | 'done' | 'rejected'
 
 export default function AttendanceKioskPage() {
   const [kioskOpen, setKioskOpen] = useState<boolean | null>(null)
-  const [students, setStudents] = useState<Student[]>([])
+  const [studentCount, setStudentCount] = useState(0)
   const [attendance, setAttendance] = useState<Record<string, boolean>>({})
   const [birthInput, setBirthInput] = useState('')
   const [inputError, setInputError] = useState('')
-  const [matches, setMatches] = useState<Student[]>([])
-  const [selected, setSelected] = useState<Student | null>(null)
+  const [matches, setMatches] = useState<KioskStudent[]>([])
+  const [selected, setSelected] = useState<KioskStudent | null>(null)
   const [step, setStep] = useState<Step>('input')
   const weekId = getThisWeekId()
   const inputRef = useRef<HTMLInputElement>(null)
 
+  function reset() {
+    setSelected(null)
+    setBirthInput('')
+    setMatches([])
+    setInputError('')
+    setStep('input')
+    setTimeout(() => inputRef.current?.focus(), 100)
+  }
+
   useEffect(() => {
     const unsub = onKioskSessionChange(s => setKioskOpen(s.isOpen))
-    Promise.all([getStudentsPublic(), getAttendance(weekId)]).then(([sts, records]) => {
-      setStudents(sts)
+    let cancelled = false
+
+    void Promise.all([getStudentCountPublic(), getAttendance(weekId)]).then(([count, records]) => {
+      if (cancelled) return
+      setStudentCount(count)
       const map: Record<string, boolean> = {}
       records.forEach(r => { map[r.uid] = r.present })
       setAttendance(map)
     })
-    return () => unsub()
+
+    return () => {
+      cancelled = true
+      unsub()
+    }
   }, [weekId])
 
   // waiting 상태: 출석 승인 또는 거절 실시간 감지
@@ -53,9 +68,9 @@ export default function AttendanceKioskPage() {
     return () => clearTimeout(t)
   }, [step])
 
-  const handleBirthSubmit = () => {
+  const handleBirthSubmit = async () => {
     if (birthInput.length !== 6) return
-    const found = students.filter(s => s.birthDate === birthInput)
+    const found = await findKioskStudentsByBirthDate(birthInput)
     if (found.length === 0) {
       setInputError('일치하는 학생이 없습니다. 다시 확인해주세요.')
       setBirthInput('')
@@ -75,12 +90,6 @@ export default function AttendanceKioskPage() {
     if (!selected) return
     await submitPendingAttendance(weekId, selected.uid)
     setStep('waiting')
-  }
-
-  const reset = () => {
-    setSelected(null); setBirthInput(''); setMatches([]); setInputError('')
-    setStep('input')
-    setTimeout(() => inputRef.current?.focus(), 100)
   }
 
   const alreadyChecked = selected ? attendance[selected.uid] === true : false
@@ -114,7 +123,6 @@ export default function AttendanceKioskPage() {
         <div className="bg-white rounded-2xl p-8 text-center w-72 space-y-3">
           <div className="text-6xl">✅</div>
           <p className="text-2xl font-bold text-gray-800">{selected.name}</p>
-          {selected.baptismalName && <p className="text-blue-600 font-medium">{selected.baptismalName}</p>}
           <p className="text-green-600 font-semibold text-lg">출석 완료!</p>
         </div>
       </div>
@@ -186,7 +194,6 @@ export default function AttendanceKioskPage() {
                 className="w-full flex items-center justify-between px-4 py-4 border border-gray-200 rounded-xl hover:bg-blue-50 text-left transition">
                 <div>
                   <span className="font-bold text-gray-800 text-lg">{s.name}</span>
-                  {s.baptismalName && <span className="ml-2 text-blue-600">{s.baptismalName}</span>}
                 </div>
                 <span className="text-xs text-gray-400 shrink-0">{s.grade}</span>
               </button>
@@ -200,7 +207,6 @@ export default function AttendanceKioskPage() {
           <div className="bg-white rounded-2xl p-6 space-y-5">
             <div className="text-center space-y-1">
               <p className="text-3xl font-bold text-gray-800">{selected.name}</p>
-              {selected.baptismalName && <p className="text-blue-600 font-medium">{selected.baptismalName}</p>}
               <p className="text-sm text-gray-400">{selected.grade}</p>
             </div>
             {alreadyChecked ? (
@@ -226,14 +232,13 @@ export default function AttendanceKioskPage() {
           <div className="bg-white rounded-2xl p-8 space-y-4 text-center">
             <div className="text-5xl animate-pulse">⏳</div>
             <p className="text-2xl font-bold text-gray-800">{selected.name}</p>
-            {selected.baptismalName && <p className="text-blue-600">{selected.baptismalName}</p>}
             <p className="text-gray-600 font-medium mt-2">선생님 확인 중...</p>
             <p className="text-gray-400 text-sm">잠시 기다려주세요</p>
           </div>
         )}
 
         <div className="text-center text-blue-200 text-sm">
-          오늘 출석: {presentCount}명 / {students.length}명
+          오늘 출석: {presentCount}명 / {studentCount}명
         </div>
       </div>
     </div>

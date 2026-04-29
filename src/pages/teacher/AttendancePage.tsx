@@ -19,24 +19,46 @@ export default function TeacherAttendancePage() {
   const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([])
   const [processingUids, setProcessingUids] = useState<Set<string>>(new Set())
 
-  const loadData = async (wid: string) => {
-    setLoading(true)
-    const [users, records] = await Promise.all([getAllUsers(), getAttendance(wid)])
-    setStudents(users.filter(u => u.role === 'student'))
-    const map: Record<string, AttendanceRecord> = {}
-    records.forEach(r => { map[r.uid] = r })
-    setAttendance(map)
-    setLoading(false)
-  }
-
   useEffect(() => {
-    getWeekList().then(list => {
+    let cancelled = false
+
+    void (async () => {
+      const [list, kioskSession] = await Promise.all([
+        getWeekList(),
+        getKioskSession(),
+      ])
+
+      if (cancelled) return
+
       const merged = Array.from(new Set([getThisWeekId(), ...list])).sort().reverse()
       setWeekList(merged)
-    })
-    getKioskSession().then(s => setKioskOpenState(s.isOpen))
-    loadData(weekId)
+      setKioskOpenState(kioskSession.isOpen)
+    })()
+
+    return () => {
+      cancelled = true
+    }
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    void (async () => {
+      const [users, records] = await Promise.all([getAllUsers(), getAttendance(weekId)])
+
+      if (cancelled) return
+
+      setStudents(users.filter(u => u.role === 'student'))
+      const map: Record<string, AttendanceRecord> = {}
+      records.forEach(r => { map[r.uid] = r })
+      setAttendance(map)
+      setLoading(false)
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [weekId])
 
   // 대기 요청 실시간 감지 (선택된 주차 기준)
   useEffect(() => {
@@ -166,7 +188,7 @@ export default function TeacherAttendancePage() {
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold text-gray-800">출석 현황</h2>
         <select className="border rounded-lg px-2 py-1.5 text-sm" value={weekId}
-          onChange={e => { setWeekId(e.target.value); loadData(e.target.value) }}>
+          onChange={e => { setLoading(true); setWeekId(e.target.value) }}>
           {weekList.map(w => <option key={w} value={w}>{w}</option>)}
         </select>
       </div>

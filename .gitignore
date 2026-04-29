@@ -16,6 +16,7 @@ dist-ssr
 .env
 .env.local
 .env.*.local
+scripts/*.private.json
 
 # Claude Code local settings
 .claude/

@@ -8,39 +8,15 @@ const EMPTY_ASSIGNMENT: Omit<Assignment, 'weekId'> = {
   intercessions: { 1: '', 2: '', 3: '', 4: '' },
 }
 
-export default function AssignmentPage() {
-  const [students, setStudents] = useState<AppUser[]>([])
-  const [weekId, setWeekId] = useState(getThisWeekId())
-  const [weekList, setWeekList] = useState<string[]>([])
-  const [form, setForm] = useState<Omit<Assignment, 'weekId'>>(EMPTY_ASSIGNMENT)
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
+interface StudentSelectProps {
+  students: AppUser[]
+  value: string
+  onChange: (value: string) => void
+  placeholder?: string
+}
 
-  const loadAssignment = async (wid: string) => {
-    const a = await getAssignment(wid)
-    setForm(a ? { narrator: a.narrator, acolytes: a.acolytes, intercessions: a.intercessions } : EMPTY_ASSIGNMENT)
-  }
-
-  useEffect(() => {
-    getAllUsers().then(all => setStudents(all.filter(u => u.role === 'student')))
-    getWeekList().then(list => {
-      const merged = Array.from(new Set([getThisWeekId(), ...list])).sort().reverse()
-      setWeekList(merged)
-    })
-    loadAssignment(weekId)
-  }, [])
-
-  const handleSave = async () => {
-    setSaving(true)
-    await saveAssignment(weekId, form)
-    setSaving(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
-  }
-
-  const studentName = (uid: string) => students.find(s => s.uid === uid)?.name ?? ''
-
-  const StudentSelect = ({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) => (
+function StudentSelect({ students, value, onChange, placeholder }: StudentSelectProps) {
+  return (
     <select
       className="w-full border rounded-lg px-3 py-2 text-sm"
       value={value}
@@ -52,6 +28,62 @@ export default function AssignmentPage() {
       ))}
     </select>
   )
+}
+
+export default function AssignmentPage() {
+  const [students, setStudents] = useState<AppUser[]>([])
+  const [weekId, setWeekId] = useState(getThisWeekId())
+  const [weekList, setWeekList] = useState<string[]>([])
+  const [form, setForm] = useState<Omit<Assignment, 'weekId'>>(EMPTY_ASSIGNMENT)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+
+    void (async () => {
+      const [all, list] = await Promise.all([getAllUsers(), getWeekList()])
+
+      if (cancelled) return
+
+      setStudents(all.filter(u => u.role === 'student'))
+      const merged = Array.from(new Set([getThisWeekId(), ...list])).sort().reverse()
+      setWeekList(merged)
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    void (async () => {
+      const assignment = await getAssignment(weekId)
+      if (cancelled) return
+
+      setForm(assignment ? {
+        narrator: assignment.narrator,
+        acolytes: assignment.acolytes,
+        intercessions: assignment.intercessions,
+      } : EMPTY_ASSIGNMENT)
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [weekId])
+
+  const handleSave = async () => {
+    setSaving(true)
+    await saveAssignment(weekId, form)
+    setSaving(false)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  const studentName = (uid: string) => students.find(s => s.uid === uid)?.name ?? ''
 
   return (
     <div className="p-4 space-y-4">
@@ -60,7 +92,7 @@ export default function AssignmentPage() {
         <select
           className="border rounded-lg px-2 py-1.5 text-sm"
           value={weekId}
-          onChange={e => { setWeekId(e.target.value); loadAssignment(e.target.value) }}
+          onChange={e => setWeekId(e.target.value)}
         >
           {weekList.map(w => <option key={w} value={w}>{w}</option>)}
         </select>
@@ -71,6 +103,7 @@ export default function AssignmentPage() {
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-1.5">해설 (1명)</label>
           <StudentSelect
+            students={students}
             value={form.narrator}
             onChange={v => setForm({ ...form, narrator: v })}
           />
@@ -83,6 +116,7 @@ export default function AssignmentPage() {
             {[0, 1].map(i => (
               <StudentSelect
                 key={i}
+                students={students}
                 value={form.acolytes[i] ?? ''}
                 onChange={v => {
                   const acolytes = [...form.acolytes]
@@ -103,6 +137,7 @@ export default function AssignmentPage() {
               <div key={n} className="flex items-center gap-2">
                 <span className="text-sm text-gray-500 w-6 shrink-0">{n}번</span>
                 <StudentSelect
+                  students={students}
                   value={form.intercessions[n] ?? ''}
                   onChange={v => setForm({ ...form, intercessions: { ...form.intercessions, [n]: v } })}
                   placeholder={`${n}번 담당`}

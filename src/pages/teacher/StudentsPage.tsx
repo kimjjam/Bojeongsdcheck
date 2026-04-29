@@ -64,11 +64,25 @@ export default function StudentsPage() {
   }
 
   useEffect(() => {
-    load()
-    getTodaySpecialStudents().then(({ birthday, feastDay }) => {
-      setTodayBirthday(birthday)
-      setTodayFeastDay(feastDay)
-    })
+    let cancelled = false
+
+    void (async () => {
+      const [all, specialStudents] = await Promise.all([
+        getAllUsers(),
+        getTodaySpecialStudents(),
+      ])
+
+      if (cancelled) return
+
+      setStudents(all.filter(u => u.role === 'student'))
+      setTodayBirthday(specialStudents.birthday)
+      setTodayFeastDay(specialStudents.feastDay)
+      setLoading(false)
+    })()
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const handleAdd = async (e: React.FormEvent) => {

@@ -14,6 +14,13 @@ export interface AppUser {
   feastDay?: string // "MM.DD" 형식 (예: "07.25")
 }
 
+export interface KioskStudent {
+  uid: string
+  name: string
+  grade?: string
+  birthDate?: string
+}
+
 export interface WeekData {
   id: string
   readings1: string  // 제1독서
