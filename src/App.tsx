@@ -9,7 +9,6 @@ const TeacherAttendancePage = lazy(() => import('./pages/teacher/AttendancePage'
 const AssignmentPage = lazy(() => import('./pages/teacher/AssignmentPage'))
 const LiturgyPage = lazy(() => import('./pages/teacher/LiturgyPage'))
 const TeacherNoticesPage = lazy(() => import('./pages/teacher/NoticesPage'))
-const MyRolePage = lazy(() => import('./pages/student/MyRolePage'))
 const AttendanceKioskPage = lazy(() => import('./pages/AttendanceKioskPage'))
 const NoticesBoardPage = lazy(() => import('./pages/NoticesBoardPage'))
 
@@ -22,7 +21,7 @@ function PageLoading() {
 }
 
 export default function App() {
-  const { user, loading, error, login, studentLogin, selectStudent, logout } = useAuth()
+  const { user, loading, error, login, logout } = useAuth()
 
   if (loading) {
     return <PageLoading />
@@ -40,12 +39,7 @@ export default function App() {
           {/* 인증 필요 */}
           <Route path="*" element={
             !user ? (
-              <LoginPage
-                onLogin={login}
-                onStudentLogin={studentLogin}
-                onSelectStudent={selectStudent}
-                error={error}
-              />
+              <LoginPage onLogin={login} error={error} />
             ) : (
               <Layout user={user} onLogout={logout}>
                 <Routes>
@@ -59,10 +53,7 @@ export default function App() {
                       <Route path="*" element={<Navigate to="/teacher/students" replace />} />
                     </>
                   ) : (
-                    <>
-                      <Route path="/student/my-role" element={<MyRolePage user={user} />} />
-                      <Route path="*" element={<Navigate to="/student/my-role" replace />} />
-                    </>
+                    <Route path="*" element={<Navigate to="/attend" replace />} />
                   )}
                 </Routes>
               </Layout>
