@@ -9,6 +9,8 @@ const QUICK_MSGS = [
   '성가대 연습이 있습니다. 미사 1시간 전 집합!',
 ]
 
+const INPUT = 'w-full bg-gray-50 rounded-xl px-4 py-3.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#1e3a5f]/10 border border-transparent focus:border-gray-200 transition'
+
 export default function TeacherNoticesPage() {
   const [notices, setNotices] = useState<Notice[]>([])
   const [title, setTitle] = useState('')
@@ -17,18 +19,14 @@ export default function TeacherNoticesPage() {
   const [sent, setSent] = useState(false)
 
   const load = async () => setNotices(await getNotices())
+
   useEffect(() => {
     let cancelled = false
-
     void (async () => {
-      const nextNotices = await getNotices()
-      if (cancelled) return
-      setNotices(nextNotices)
+      const list = await getNotices()
+      if (!cancelled) setNotices(list)
     })()
-
-    return () => {
-      cancelled = true
-    }
+    return () => { cancelled = true }
   }, [])
 
   const handleSend = async (e: React.FormEvent) => {
@@ -52,59 +50,74 @@ export default function TeacherNoticesPage() {
     d.toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 
   return (
-    <div className="p-4 space-y-4">
-      <h2 className="text-lg font-bold text-gray-800">알림장</h2>
+    <div className="px-4 pt-6 pb-8 space-y-6">
+      <h2 className="text-xl font-bold text-gray-900 px-1">알림장</h2>
 
-      {/* 알림 작성 */}
-      <form onSubmit={handleSend} className="bg-white rounded-xl shadow-sm p-4 space-y-3">
-        <p className="text-sm font-semibold text-gray-700">새 알림 보내기</p>
+      {/* 작성 폼 */}
+      <form onSubmit={handleSend} className="bg-white rounded-2xl p-5 space-y-3">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">새 알림 보내기</p>
         <input
-          className="w-full border rounded-lg px-3 py-2.5 text-sm"
+          className={INPUT}
           placeholder="제목 (선택)"
           value={title}
           onChange={e => setTitle(e.target.value)}
         />
         <textarea
-          className="w-full border rounded-lg px-3 py-2.5 text-sm min-h-[80px] resize-none"
+          className={`${INPUT} min-h-[90px] resize-none`}
           placeholder="내용을 입력하세요"
           value={body}
           onChange={e => setBody(e.target.value)}
           required
         />
+
         {/* 빠른 입력 */}
-        <div className="space-y-1.5">
-          <p className="text-xs text-gray-400">빠른 입력</p>
-          <div className="flex flex-wrap gap-1.5">
+        <div>
+          <p className="text-xs text-gray-400 mb-2">빠른 입력</p>
+          <div className="flex flex-col gap-1.5">
             {QUICK_MSGS.map(msg => (
-              <button key={msg} type="button"
+              <button
+                key={msg}
+                type="button"
                 onClick={() => setBody(msg)}
-                className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-2.5 py-1.5 rounded-lg text-left">
-                {msg.slice(0, 18)}…
+                className="text-left text-xs bg-gray-50 hover:bg-gray-100 text-gray-500 px-3.5 py-2.5 rounded-xl transition"
+              >
+                {msg}
               </button>
             ))}
           </div>
         </div>
-        <button type="submit" disabled={sending || !body.trim()}
-          className="w-full bg-[#1e3a5f] text-white rounded-xl py-3 font-medium disabled:opacity-60">
+
+        <button
+          type="submit"
+          disabled={sending || !body.trim()}
+          className="w-full bg-[#1e3a5f] text-white rounded-2xl py-4 font-semibold text-sm disabled:opacity-40 transition active:scale-[0.98] mt-1"
+        >
           {sending ? '전송 중...' : sent ? '✓ 전송됨' : '📢 알림 보내기'}
         </button>
       </form>
 
       {/* 알림 목록 */}
       <div className="space-y-2">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-1">보낸 알림</p>
         {notices.length === 0 ? (
-          <p className="text-center text-gray-400 py-6 text-sm">보낸 알림이 없습니다</p>
+          <div className="bg-white rounded-2xl py-12 text-center text-gray-300 text-sm">
+            보낸 알림이 없습니다
+          </div>
         ) : (
           notices.map(n => (
-            <div key={n.id} className="bg-white rounded-xl shadow-sm p-4">
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1">
-                  <p className="font-semibold text-gray-800 text-sm">{n.title}</p>
-                  <p className="text-sm text-gray-600 mt-0.5 whitespace-pre-wrap">{n.body}</p>
-                  <p className="text-xs text-gray-400 mt-1.5">{formatDate(n.createdAt)}</p>
+            <div key={n.id} className="bg-white rounded-2xl p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-gray-900 text-sm">{n.title}</p>
+                  <p className="text-sm text-gray-500 mt-1 whitespace-pre-wrap leading-relaxed">{n.body}</p>
+                  <p className="text-xs text-gray-300 mt-2">{formatDate(n.createdAt)}</p>
                 </div>
-                <button onClick={() => handleDelete(n.id)}
-                  className="text-gray-300 hover:text-red-400 shrink-0 text-lg leading-none">×</button>
+                <button
+                  onClick={() => handleDelete(n.id)}
+                  className="text-gray-200 hover:text-red-400 transition text-xl leading-none shrink-0 mt-0.5"
+                >
+                  ×
+                </button>
               </div>
             </div>
           ))
