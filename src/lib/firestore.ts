@@ -99,12 +99,14 @@ export async function createStudent(
   baptismalName: string,
   grade: string,
   groups: string[],
-  birthDate: string  // "YYMMDD" 6자리
+  birthDate: string,  // "YYMMDD" 6자리
+  feastDay?: string   // "MM.DD" 형식
 ) {
   const uid = `student_${grade}_${name}_${Date.now()}`
   await setDoc(doc(db, 'users', uid), {
     email: '',
     name, baptismalName, grade, groups, birthDate,
+    ...(feastDay ? { feastDay } : {}),
     role: 'student',
   })
   return uid

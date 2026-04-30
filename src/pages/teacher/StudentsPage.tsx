@@ -54,6 +54,7 @@ export default function StudentsPage() {
   const [newGrade, setNewGrade] = useState('중1')
   const [newGroups, setNewGroups] = useState<StudentGroup[]>([])
   const [newBirthDate, setNewBirthDate] = useState('')
+  const [newFeastDay, setNewFeastDay] = useState('')
   const [saving, setSaving] = useState(false)
   const [addError, setAddError] = useState('')
 
@@ -81,9 +82,9 @@ export default function StudentsPage() {
     e.preventDefault()
     setSaving(true); setAddError('')
     try {
-      await createStudent(newName, newBaptismalName, newGrade, newGroups, toShortDate(newBirthDate))
+      await createStudent(newName, newBaptismalName, newGrade, newGroups, toShortDate(newBirthDate), newFeastDay || undefined)
       setShowAdd(false)
-      setNewName(''); setNewBaptismalName(''); setNewGrade('중1'); setNewGroups([]); setNewBirthDate('')
+      setNewName(''); setNewBaptismalName(''); setNewGrade('중1'); setNewGroups([]); setNewBirthDate(''); setNewFeastDay('')
       await load()
     } catch {
       setAddError('등록 실패. 다시 시도해주세요.')
@@ -99,6 +100,7 @@ export default function StudentsPage() {
       grade: editTarget.grade,
       groups: editTarget.groups ?? [],
       birthDate: editTarget.birthDate ?? '',
+      feastDay: editTarget.feastDay ?? '',
     })
     setEditTarget(null); setSaving(false); await load()
   }
@@ -215,9 +217,15 @@ export default function StudentsPage() {
               <select className={modalInputCls} value={newGrade} onChange={e => setNewGrade(e.target.value)}>
                 {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
               </select>
-              <div className="space-y-1.5">
-                <p className="text-xs text-gray-400 font-medium px-1">생년월일</p>
-                <input type="date" className={modalInputCls} value={newBirthDate} onChange={e => setNewBirthDate(e.target.value)} required />
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1.5">
+                  <p className="text-xs text-gray-400 font-medium px-1">생년월일</p>
+                  <input type="date" className={modalInputCls} value={newBirthDate} onChange={e => setNewBirthDate(e.target.value)} required />
+                </div>
+                <div className="space-y-1.5">
+                  <p className="text-xs text-gray-400 font-medium px-1">축일 <span className="font-normal text-gray-300">(MM.DD)</span></p>
+                  <input className={modalInputCls} placeholder="예: 07.25" maxLength={5} value={newFeastDay} onChange={e => setNewFeastDay(e.target.value)} />
+                </div>
               </div>
               <div className="space-y-1.5">
                 <p className="text-xs text-gray-400 font-medium px-1">소속</p>
@@ -247,12 +255,21 @@ export default function StudentsPage() {
               <select className={modalInputCls} value={editTarget.grade ?? '중1'} onChange={e => setEditTarget({ ...editTarget, grade: e.target.value })}>
                 {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
               </select>
-              <div className="space-y-1.5">
-                <p className="text-xs text-gray-400 font-medium px-1">생년월일</p>
-                <input type="date" className={modalInputCls}
-                  value={toLongDate(editTarget.birthDate ?? '')}
-                  onChange={e => setEditTarget({ ...editTarget, birthDate: toShortDate(e.target.value) })}
-                />
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1.5">
+                  <p className="text-xs text-gray-400 font-medium px-1">생년월일</p>
+                  <input type="date" className={modalInputCls}
+                    value={toLongDate(editTarget.birthDate ?? '')}
+                    onChange={e => setEditTarget({ ...editTarget, birthDate: toShortDate(e.target.value) })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <p className="text-xs text-gray-400 font-medium px-1">축일 <span className="font-normal text-gray-300">(MM.DD)</span></p>
+                  <input className={modalInputCls} placeholder="예: 07.25" maxLength={5}
+                    value={editTarget.feastDay ?? ''}
+                    onChange={e => setEditTarget({ ...editTarget, feastDay: e.target.value })}
+                  />
+                </div>
               </div>
               <div className="space-y-1.5">
                 <p className="text-xs text-gray-400 font-medium px-1">소속</p>
