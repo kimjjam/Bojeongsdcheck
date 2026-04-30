@@ -25,6 +25,7 @@ export default function TeacherAttendancePage() {
   const [kioskToggling, setKioskToggling] = useState(false)
   const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([])
   const [processingUids, setProcessingUids] = useState<Set<string>>(new Set())
+  const [confirmTarget, setConfirmTarget] = useState<{ student: AppUser; currentPresent: boolean } | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -98,6 +99,7 @@ export default function TeacherAttendancePage() {
   const attendanceUrl = `${window.location.origin}/attend`
 
   return (
+    <>
     <div className="px-4 pt-6 pb-8 space-y-4">
       <h2 className="text-xl font-bold text-gray-900 px-1">출석 관리</h2>
 
@@ -223,7 +225,7 @@ export default function TeacherAttendancePage() {
                     <li
                       key={student.uid}
                       className="flex items-center justify-between px-5 py-4 cursor-pointer active:bg-gray-50 transition"
-                      onClick={() => void toggle(student.uid)}
+                      onClick={() => setConfirmTarget({ student, currentPresent: attendance[student.uid]?.present ?? false })}
                     >
                       <span className="font-medium text-gray-800 text-sm">{student.name}</span>
                       <span className={`text-xs font-semibold px-3 py-1.5 rounded-full ${
@@ -243,5 +245,53 @@ export default function TeacherAttendancePage() {
           ))
       )}
     </div>
+
+    {/* 출석 변경 확인 모달 */}
+    {confirmTarget && (
+      <div
+        className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-6"
+        onClick={() => setConfirmTarget(null)}
+      >
+        <div
+          className="bg-white rounded-3xl p-6 w-full max-w-xs space-y-5"
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="text-center space-y-1.5">
+            <p className="text-lg font-bold text-gray-900">{confirmTarget.student.name}</p>
+            {confirmTarget.student.grade && (
+              <p className="text-xs text-gray-400">{confirmTarget.student.grade}</p>
+            )}
+            <div className="flex items-center justify-center gap-2 pt-1">
+              <span className={`text-sm font-semibold px-3 py-1 rounded-full ${
+                confirmTarget.currentPresent ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-400'
+              }`}>
+                {confirmTarget.currentPresent ? '출석' : '결석'}
+              </span>
+              <span className="text-gray-300 text-sm">→</span>
+              <span className={`text-sm font-semibold px-3 py-1 rounded-full ${
+                confirmTarget.currentPresent ? 'bg-gray-100 text-gray-400' : 'bg-green-50 text-green-600'
+              }`}>
+                {confirmTarget.currentPresent ? '결석' : '출석'}
+              </span>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setConfirmTarget(null)}
+              className="flex-1 bg-gray-50 text-gray-500 rounded-2xl py-3.5 text-sm font-semibold"
+            >
+              취소
+            </button>
+            <button
+              onClick={() => { void toggle(confirmTarget.student.uid); setConfirmTarget(null) }}
+              className="flex-1 bg-[#1e3a5f] text-white rounded-2xl py-3.5 text-sm font-semibold"
+            >
+              확인
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   )
 }
