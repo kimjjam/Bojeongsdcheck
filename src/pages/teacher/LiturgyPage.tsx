@@ -10,8 +10,6 @@ export default function LiturgyPage() {
   const [readings1, setReadings1] = useState('')
   const [readings2, setReadings2] = useState('')
   const [intercessions, setIntercessions] = useState<Record<number, string>>({ 1: '', 2: '', 3: '', 4: '' })
-  const [snack, setSnack] = useState('')
-  const [eventsText, setEventsText] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
@@ -34,12 +32,9 @@ export default function LiturgyPage() {
         setReadings1(data.readings1 ?? '')
         setReadings2(data.readings2 ?? '')
         setIntercessions(data.intercessions as Record<number, string> ?? { 1: '', 2: '', 3: '', 4: '' })
-        setSnack(data.snack ?? '')
-        setEventsText(data.events?.join('\n') ?? '')
       } else {
         setReadings1(''); setReadings2('')
         setIntercessions({ 1: '', 2: '', 3: '', 4: '' })
-        setSnack(''); setEventsText('')
       }
     })()
     return () => { cancelled = true }
@@ -47,12 +42,9 @@ export default function LiturgyPage() {
 
   const handleSave = async () => {
     setSaving(true)
-    const events = eventsText.split('\n').map(s => s.trim()).filter(Boolean)
     await saveWeekData(weekId, {
       readings1, readings2,
       intercessions: intercessions as { 1: string; 2: string; 3: string; 4: string },
-      snack: snack || undefined,
-      events: events.length > 0 ? events : undefined,
     })
     setSaving(false); setSaved(true)
     setTimeout(() => setSaved(false), 2000)
@@ -116,29 +108,6 @@ export default function LiturgyPage() {
             />
           </div>
         ))}
-      </div>
-
-      {/* 주간 정보 */}
-      <div className="bg-white rounded-2xl p-5 space-y-4">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">이번 주 정보</p>
-        <div className="space-y-1.5">
-          <p className="text-xs text-gray-400 font-medium">🍪 간식</p>
-          <input
-            className={INPUT}
-            placeholder="예: 떡볶이, 음료수"
-            value={snack}
-            onChange={e => setSnack(e.target.value)}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <p className="text-xs text-gray-400 font-medium">📅 행사 일정 <span className="font-normal text-gray-300">(한 줄에 하나씩)</span></p>
-          <textarea
-            className={`${TEXTAREA} min-h-[80px]`}
-            placeholder={'예:\n수련회 신청 마감 (5/10)\n성체행렬 봉사자 모집'}
-            value={eventsText}
-            onChange={e => setEventsText(e.target.value)}
-          />
-        </div>
       </div>
 
       <button
