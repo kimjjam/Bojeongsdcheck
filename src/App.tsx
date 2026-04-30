@@ -10,7 +10,6 @@ const AssignmentPage = lazy(() => import('./pages/teacher/AssignmentPage'))
 const LiturgyPage = lazy(() => import('./pages/teacher/LiturgyPage'))
 const TeacherNoticesPage = lazy(() => import('./pages/teacher/NoticesPage'))
 const AttendanceKioskPage = lazy(() => import('./pages/AttendanceKioskPage'))
-const NoticesBoardPage = lazy(() => import('./pages/NoticesBoardPage'))
 
 function PageLoading() {
   return (
@@ -33,8 +32,6 @@ export default function App() {
         <Routes>
           {/* 로그인 없이 접근 가능 */}
           <Route path="/attend"  element={<AttendanceKioskPage />} />
-          <Route path="/kiosk"   element={<Navigate to="/attend" replace />} />
-          <Route path="/notices" element={<NoticesBoardPage />} />
 
           {/* 인증 필요 */}
           <Route path="*" element={

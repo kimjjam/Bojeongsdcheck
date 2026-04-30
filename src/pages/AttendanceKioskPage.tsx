@@ -3,6 +3,7 @@ import {
   findKioskStudentsByBirthDate,
   getAssignment,
   getAttendance,
+  getNotices,
   getStudentCountPublic,
   getThisWeekId,
   getUserAttendanceHistory,
@@ -12,7 +13,7 @@ import {
   onPendingRequestChange,
   submitPendingAttendance,
 } from '../lib/firestore'
-import type { KioskStudent, LiturgyRole } from '../types'
+import type { KioskStudent, LiturgyRole, Notice } from '../types'
 
 type Step = 'input' | 'select' | 'confirm' | 'waiting' | 'done' | 'rejected'
 
@@ -49,6 +50,7 @@ export default function AttendanceKioskPage() {
   const [kioskOpen, setKioskOpen] = useState<boolean | null>(null)
   const [studentCount, setStudentCount] = useState(0)
   const [attendance, setAttendance] = useState<Record<string, boolean>>({})
+  const [notices, setNotices] = useState<Notice[]>([])
   const [birthInput, setBirthInput] = useState('')
   const [inputError, setInputError] = useState('')
   const [matches, setMatches] = useState<KioskStudent[]>([])
@@ -69,12 +71,13 @@ export default function AttendanceKioskPage() {
   useEffect(() => {
     const unsubscribe = onKioskSessionChange(s => setKioskOpen(s.isOpen))
     let cancelled = false
-    void Promise.all([getStudentCountPublic(), getAttendance(weekId)]).then(([count, records]) => {
+    void Promise.all([getStudentCountPublic(), getAttendance(weekId), getNotices(5)]).then(([count, records, noticeList]) => {
       if (cancelled) return
       setStudentCount(count)
       const map: Record<string, boolean> = {}
       records.forEach(r => { map[r.uid] = r.present })
       setAttendance(map)
+      setNotices(noticeList)
     })
     return () => { cancelled = true; unsubscribe() }
   }, [weekId])
@@ -287,6 +290,24 @@ export default function AttendanceKioskPage() {
                 </div>
               )}
             </>
+          )}
+
+          {/* 알림장 */}
+          {notices.length > 0 && (
+            <div className="bg-white rounded-3xl overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-50 flex items-center gap-2">
+                <span className="text-sm">📢</span>
+                <p className="text-sm font-semibold text-gray-900">알림장</p>
+              </div>
+              <div className="divide-y divide-gray-50">
+                {notices.map(n => (
+                  <div key={n.id} className="px-5 py-4 space-y-1">
+                    <p className="text-sm font-semibold text-gray-900">{n.title}</p>
+                    <p className="text-sm text-gray-500 whitespace-pre-wrap leading-relaxed">{n.body}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
 
           <button

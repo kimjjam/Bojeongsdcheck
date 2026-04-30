@@ -118,7 +118,7 @@ LiturgyRole = 'narrator' | 'acolyte_1' | 'acolyte_2' | 'intercession_1~4' | null
 
 ## 최근 변경 이력
 
-- 2026-04-29 학생 공개 출석 경로를 `/attend`로 변경하고 `/kiosk`는 리다이렉트로 유지, 교사 화면 문구를 개인 휴대폰 출석 기준으로 정리
+- 2026-04-30 `/kiosk`·`/notices` 공개 라우트 삭제, 알림장을 `/attend` 완료 화면에 통합 (NoticesBoardPage 제거)
 - 2026-04-29 Cursor 규칙 파일 `.cursorrules` 추가, AGENTS 기준 계획 승인 절차와 문서 갱신 규칙을 Cursor 환경에도 동일 반영
 - 2026-04-29 React 19 / Router 7 기준으로 문서와 실제 코드 정합성 수정, 미사용 학생 출석 페이지 및 Vite 기본 자산 정리
 - 2026-04-29 `weekId`를 KST 기준으로 계산하도록 수정하고, 역할 배정/출석/전례/알림장 페이지의 React Hooks lint 이슈 정리
