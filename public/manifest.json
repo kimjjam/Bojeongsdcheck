@@ -1,0 +1,19 @@
+{
+  "name": "보정성당 주일학교",
+  "short_name": "주일학교",
+  "description": "보정성당 청소년부 선생님 전용 관리 앱",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1e3a5f",
+  "theme_color": "#1e3a5f",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
