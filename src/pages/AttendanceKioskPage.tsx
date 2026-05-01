@@ -73,6 +73,7 @@ export default function AttendanceKioskPage() {
   const [step, setStep] = useState<Step>('input')
   const [studentData, setStudentData] = useState<StudentData | null>(null)
   const [dataLoading, setDataLoading] = useState(false)
+  const [roleModalOpen, setRoleModalOpen] = useState(false)
   const weekId = getThisWeekId()
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -218,6 +219,7 @@ export default function AttendanceKioskPage() {
     const isBirthday = selected.birthDate ? selected.birthDate.slice(2, 6) === todayMMDD : false
     const isFeastDay = getStudentFeastDayMMDD(selected) === todayMMDD
     return (
+      <>
       <div className="min-h-screen bg-gray-50 flex flex-col items-center pt-8 px-4 pb-10">
         <div className="w-full max-w-sm space-y-3">
 
@@ -297,14 +299,13 @@ export default function AttendanceKioskPage() {
                       <p className="text-xs text-gray-400 text-center">미사 진행에 맞게 해설을 담당해 주세요.</p>
                     )}
                     {studentData.role !== 'narrator' && (
-                      <div className="bg-gray-50 rounded-2xl overflow-hidden">
-                        <p className="px-4 py-2.5 text-xs font-semibold text-gray-500 border-b border-gray-100">
-                          📖 {studentData.roleContentLabel}
-                        </p>
-                        <p className="p-4 text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">
-                          {studentData.roleContent ?? '아직 내용이 입력되지 않았습니다.'}
-                        </p>
-                      </div>
+                      <button
+                        onClick={() => setRoleModalOpen(true)}
+                        className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 rounded-2xl text-sm transition active:scale-[0.98]"
+                      >
+                        <span className="font-medium text-gray-700">📖 {studentData.roleContentLabel} 보기</span>
+                        <span className="text-gray-400 text-lg">›</span>
+                      </button>
                     )}
                   </div>
                 </div>
@@ -388,6 +389,49 @@ export default function AttendanceKioskPage() {
           </button>
         </div>
       </div>
+
+      {/* 본문 모달 */}
+      {roleModalOpen && studentData && studentData.role && studentData.role !== 'narrator' && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col bg-white"
+          onClick={() => setRoleModalOpen(false)}
+        >
+          {/* 헤더 */}
+          <div className="bg-[#1e3a5f] px-5 py-4 flex items-center justify-between shrink-0">
+            <div>
+              <p className="text-blue-300/70 text-[9px] tracking-[0.2em] uppercase font-semibold">이번 주 전례 담당</p>
+              <p className="text-white text-sm font-bold mt-0.5">{studentData.roleContentLabel}</p>
+            </div>
+            <button
+              onClick={() => setRoleModalOpen(false)}
+              className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white text-lg leading-none"
+            >
+              ×
+            </button>
+          </div>
+
+          {/* 본문 스크롤 영역 */}
+          <div
+            className="flex-1 overflow-y-auto px-6 py-6"
+            onClick={e => e.stopPropagation()}
+          >
+            <p className="text-gray-700 text-base leading-8 whitespace-pre-wrap">
+              {studentData.roleContent ?? '아직 내용이 입력되지 않았습니다.'}
+            </p>
+          </div>
+
+          {/* 닫기 버튼 */}
+          <div className="px-5 py-4 shrink-0 border-t border-gray-100">
+            <button
+              onClick={() => setRoleModalOpen(false)}
+              className="w-full bg-[#1e3a5f] text-white rounded-2xl py-4 font-semibold text-sm"
+            >
+              닫기
+            </button>
+          </div>
+        </div>
+      )}
+      </>
     )
   }
 
