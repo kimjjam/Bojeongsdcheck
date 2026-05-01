@@ -198,14 +198,50 @@ export default function AttendanceKioskPage() {
       <div className="min-h-screen bg-gray-50 flex flex-col items-center pt-8 px-4 pb-10">
         <div className="w-full max-w-sm space-y-3">
 
-          {/* 완료 헤더 */}
-          <div className="bg-white rounded-3xl p-6 text-center space-y-1.5">
-            <div className="w-14 h-14 bg-green-50 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-1">✅</div>
-            <p className="text-xl font-bold text-gray-900">{selected.name}</p>
-            {selected.grade && <p className="text-xs text-gray-400">{selected.grade}</p>}
-            <p className="text-green-500 font-semibold text-sm">
-              {step === 'confirm' ? '이미 출석 완료' : '출석 완료!'}
-            </p>
+          {/* 사원증 카드 */}
+          <div className="flex flex-col items-center">
+            {/* 랜야드 고리 */}
+            <div className="w-8 h-8 rounded-full border-[3px] border-gray-300 bg-gray-100 -mb-4 z-10 relative shadow-inner" />
+
+            <div className="w-full bg-white rounded-3xl overflow-hidden shadow-lg border border-gray-100">
+              {/* 조직 헤더 */}
+              <div className="bg-[#1e3a5f] px-6 pt-8 pb-14 text-center relative overflow-hidden">
+                <div className="absolute inset-0 flex items-center justify-center text-[120px] text-white/[0.04] select-none pointer-events-none leading-none">✝</div>
+                <p className="text-blue-300/70 text-[9px] tracking-[0.3em] font-semibold uppercase relative z-10">Catholic Youth</p>
+                <p className="text-white text-sm font-bold mt-0.5 relative z-10">보정성당 청소년부</p>
+              </div>
+
+              {/* 이니셜 아바타 */}
+              <div className="flex justify-center -mt-10 relative z-10 mb-3">
+                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#162d4a] to-[#2d6aab] flex items-center justify-center text-white text-3xl font-bold shadow-lg ring-[3px] ring-white">
+                  {selected.name[0]}
+                </div>
+              </div>
+
+              {/* 이름 / 학년 / 출석 배지 */}
+              <div className="text-center px-6 pb-5 space-y-1">
+                <p className="text-[22px] font-bold text-gray-900 tracking-tight">{selected.name}</p>
+                {selected.grade && <p className="text-xs text-gray-400">{selected.grade}</p>}
+                <div className="pt-2">
+                  <span className={`inline-flex items-center gap-1 px-5 py-[6px] rounded-full text-[11px] font-bold ${
+                    step === 'confirm' ? 'bg-gray-100 text-gray-400' : 'bg-green-500 text-white'
+                  }`}>
+                    {step !== 'confirm' && '✓ '}
+                    {step === 'confirm' ? '이미 출석 완료' : '출석 완료!'}
+                  </span>
+                </div>
+              </div>
+
+              {/* 티켓 하단: 날짜 + 바코드 장식 */}
+              <div className="mx-4 border-t border-dashed border-gray-200 py-3 flex items-center justify-between px-2">
+                <span className="text-[10px] text-gray-300 font-mono tracking-wide">{weekId}</span>
+                <div className="flex items-end gap-[2px]">
+                  {[10, 7, 14, 5, 12, 8, 14, 6, 10, 5, 12].map((h, i) => (
+                    <div key={i} style={{ height: `${h}px` }} className="w-[2px] bg-gray-200 rounded-full" />
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* 출석 통계 */}
