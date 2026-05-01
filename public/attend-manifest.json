@@ -1,0 +1,19 @@
+{
+  "name": "보정성당 출석",
+  "short_name": "출석체크",
+  "description": "보정성당 청소년부 미사 출석 체크",
+  "start_url": "/attend",
+  "scope": "/attend",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1e3a5f",
+  "theme_color": "#1e3a5f",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

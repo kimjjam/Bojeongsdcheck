@@ -75,6 +75,23 @@ export default function AttendanceKioskPage() {
   const [dataLoading, setDataLoading] = useState(false)
   const [roleModalOpen, setRoleModalOpen] = useState(false)
   const weekId = getThisWeekId()
+
+  // /attend 진입 시 키오스크 전용 PWA manifest로 교체
+  useEffect(() => {
+    const el = document.querySelector<HTMLLinkElement>('link[rel="manifest"]')
+    const prev = el?.href ?? null
+    if (el) el.href = '/attend-manifest.json'
+    else {
+      const link = document.createElement('link')
+      link.rel = 'manifest'
+      link.href = '/attend-manifest.json'
+      document.head.appendChild(link)
+    }
+    return () => {
+      const cur = document.querySelector<HTMLLinkElement>('link[rel="manifest"]')
+      if (cur) cur.href = prev ?? '/manifest.json'
+    }
+  }, [])
   const inputRef = useRef<HTMLInputElement>(null)
 
   function reset() {
