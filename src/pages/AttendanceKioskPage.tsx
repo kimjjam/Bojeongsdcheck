@@ -387,95 +387,176 @@ export default function AttendanceKioskPage() {
 
   // ── 기본 입력 흐름 ────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-[#1e3a5f] flex flex-col items-center justify-start pt-12 px-4">
-      <div className="w-full max-w-sm space-y-5">
+    <div className="min-h-screen bg-[#1e3a5f] flex flex-col items-center justify-start pt-10 px-4 pb-10">
+      <div className="w-full max-w-sm space-y-4">
 
         {/* 헤더 */}
-        <div className="text-center space-y-1 mb-2">
-          <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-3">✝️</div>
-          <h1 className="text-white text-xl font-bold">학생 출석</h1>
-          <p className="text-blue-300 text-sm">{weekId} 미사</p>
+        <div className="text-center space-y-2 mb-2">
+          <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center text-2xl mx-auto border border-white/10">✝</div>
+          <div>
+            <h1 className="text-white text-lg font-bold">보정성당 청소년부</h1>
+            <p className="text-blue-300/70 text-xs mt-0.5">{weekId} 미사 출석</p>
+          </div>
         </div>
 
         {/* 생년월일 입력 */}
         {step === 'input' && (
-          <div className="bg-white rounded-3xl p-6 space-y-5">
-            <div className="text-center space-y-1">
-              <p className="text-sm font-semibold text-gray-900">생년월일 6자리</p>
-              <p className="text-xs text-gray-400">예: 2013년 5월 15일 → 130515</p>
+          <div className="bg-white rounded-3xl overflow-hidden shadow-xl">
+            {/* 상단 배너 */}
+            <div className="bg-[#1e3a5f] px-5 py-3 flex items-center gap-2">
+              <div className="flex gap-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-white/30" />
+                <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
+                <div className="w-1.5 h-1.5 rounded-full bg-white/10" />
+              </div>
+              <p className="text-white/50 text-[10px] font-mono tracking-[0.2em] ml-1">STUDENT ID</p>
             </div>
-            <input
-              ref={inputRef}
-              type="tel"
-              maxLength={6}
-              value={birthInput}
-              onChange={e => { setBirthInput(e.target.value.replace(/\D/g, '')); setInputError('') }}
-              onKeyDown={e => { if (e.key === 'Enter') void handleBirthSubmit() }}
-              placeholder="YYMMDD"
-              className={`w-full rounded-2xl px-4 py-5 text-center text-3xl tracking-widest font-mono focus:outline-none transition ${
-                inputError ? 'bg-red-50 text-red-500' : 'bg-gray-50 text-gray-900 focus:bg-white'
-              }`}
-              autoFocus
-            />
-            {inputError && <p className="text-red-400 text-xs text-center">{inputError}</p>}
-            <button
-              onClick={() => void handleBirthSubmit()}
-              disabled={birthInput.length !== 6}
-              className="w-full bg-[#1e3a5f] text-white rounded-2xl py-4 font-semibold disabled:opacity-30 transition active:scale-[0.98]"
-            >
-              확인
-            </button>
+
+            <div className="p-6 space-y-5">
+              {/* 아바타 플레이스홀더 */}
+              <div className="flex justify-center">
+                <div className="w-16 h-16 rounded-2xl bg-gray-100 border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-300 text-2xl select-none">
+                  ?
+                </div>
+              </div>
+
+              <div className="text-center space-y-1">
+                <p className="text-sm font-semibold text-gray-900">생년월일 6자리 입력</p>
+                <p className="text-xs text-gray-400">예: 2013년 5월 15일 → 130515</p>
+              </div>
+
+              <input
+                ref={inputRef}
+                type="tel"
+                maxLength={6}
+                value={birthInput}
+                onChange={e => { setBirthInput(e.target.value.replace(/\D/g, '')); setInputError('') }}
+                onKeyDown={e => { if (e.key === 'Enter') void handleBirthSubmit() }}
+                placeholder="YYMMDD"
+                className={`w-full rounded-2xl px-4 py-5 text-center text-3xl tracking-widest font-mono focus:outline-none transition ${
+                  inputError ? 'bg-red-50 text-red-500' : 'bg-gray-50 text-gray-900 focus:bg-white'
+                }`}
+                autoFocus
+              />
+              {inputError && <p className="text-red-400 text-xs text-center">{inputError}</p>}
+              <button
+                onClick={() => void handleBirthSubmit()}
+                disabled={birthInput.length !== 6}
+                className="w-full bg-[#1e3a5f] text-white rounded-2xl py-4 font-semibold disabled:opacity-30 transition active:scale-[0.98]"
+              >
+                본인 확인
+              </button>
+            </div>
+
+            {/* 하단 티켓 */}
+            <div className="border-t border-dashed border-gray-100 mx-5 mb-4 pt-3 flex justify-between items-center">
+              <span className="text-[10px] text-gray-200 font-mono">{weekId}</span>
+              <div className="flex gap-[2px] items-end">
+                {[8, 12, 6, 14, 8, 10, 14, 6, 12, 8, 10].map((h, i) => (
+                  <div key={i} style={{ height: `${h}px` }} className="w-[2px] bg-gray-100 rounded-full" />
+                ))}
+              </div>
+            </div>
           </div>
         )}
 
         {/* 학생 선택 */}
         {step === 'select' && (
-          <div className="bg-white rounded-3xl p-5 space-y-3">
-            <p className="text-sm font-semibold text-gray-900 text-center">해당하는 학생을 선택하세요</p>
-            {matches.map(s => (
-              <button
-                key={s.uid}
-                onClick={() => { setSelected(s); setStep('confirm') }}
-                className="w-full flex items-center justify-between px-4 py-4 bg-gray-50 hover:bg-gray-100 rounded-2xl transition"
-              >
-                <span className="font-semibold text-gray-900">{s.name}</span>
-                <span className="text-xs text-gray-400">{s.grade}</span>
-              </button>
-            ))}
-            <button onClick={reset} className="w-full text-sm text-gray-400 pt-1">← 다시 입력</button>
+          <div className="bg-white rounded-3xl overflow-hidden shadow-xl">
+            <div className="bg-[#1e3a5f] px-5 py-3 flex items-center gap-2">
+              <div className="flex gap-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-white/30" />
+                <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
+                <div className="w-1.5 h-1.5 rounded-full bg-white/10" />
+              </div>
+              <p className="text-white/50 text-[10px] font-mono tracking-[0.2em] ml-1">SELECT PROFILE</p>
+            </div>
+            <div className="p-5 space-y-3">
+              <p className="text-sm font-semibold text-gray-900 text-center">해당하는 학생을 선택하세요</p>
+              {matches.map(s => (
+                <button
+                  key={s.uid}
+                  onClick={() => { setSelected(s); setStep('confirm') }}
+                  className="w-full flex items-center gap-3 px-4 py-3.5 bg-gray-50 hover:bg-gray-100 rounded-2xl transition active:scale-[0.99]"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-[#1e3a5f]/10 flex items-center justify-center text-[#1e3a5f] font-bold text-sm shrink-0">
+                    {s.name[0]}
+                  </div>
+                  <div className="text-left">
+                    <p className="font-semibold text-gray-900 text-sm">{s.name}</p>
+                    {s.grade && <p className="text-xs text-gray-400">{s.grade}</p>}
+                  </div>
+                  <span className="ml-auto text-gray-300 text-lg">›</span>
+                </button>
+              ))}
+              <button onClick={reset} className="w-full text-sm text-gray-400 pt-1">← 다시 입력</button>
+            </div>
           </div>
         )}
 
         {/* 출석 확인 */}
         {step === 'confirm' && selected && !alreadyChecked && (
-          <div className="bg-white rounded-3xl p-6 space-y-5">
-            <div className="text-center space-y-1">
-              <p className="text-2xl font-bold text-gray-900">{selected.name}</p>
-              <p className="text-sm text-gray-400">{selected.grade}</p>
+          <div className="bg-white rounded-3xl overflow-hidden shadow-xl">
+            {/* 미니 ID 카드 헤더 */}
+            <div className="bg-[#1e3a5f] px-5 py-4 text-center relative overflow-hidden">
+              <div className="absolute inset-0 flex items-center justify-center text-[80px] text-white/[0.04] select-none leading-none">✝</div>
+              <p className="text-blue-300/70 text-[9px] tracking-[0.3em] font-semibold uppercase relative">Catholic Youth</p>
+              <p className="text-white text-xs font-bold mt-0.5 relative">보정성당 청소년부</p>
             </div>
-            <button
-              onClick={() => void handleRequestAttendance()}
-              className="w-full bg-[#1e3a5f] text-white rounded-2xl py-4 font-semibold transition active:scale-[0.98]"
-            >
-              출석 요청
-            </button>
-            <button onClick={reset} className="w-full text-sm text-gray-400 bg-gray-50 rounded-2xl py-3">
-              ← 다시 입력
-            </button>
+
+            <div className="flex justify-center -mt-6 relative z-10 mb-2">
+              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#162d4a] to-[#2d6aab] flex items-center justify-center text-white text-xl font-bold shadow-md ring-2 ring-white">
+                {selected.name[0]}
+              </div>
+            </div>
+
+            <div className="text-center px-6 pb-6 space-y-4">
+              <div>
+                <p className="text-xl font-bold text-gray-900">{selected.name}</p>
+                {selected.grade && <p className="text-xs text-gray-400 mt-0.5">{selected.grade}</p>}
+                <p className="text-xs text-gray-300 mt-2">본인이 맞으신가요?</p>
+              </div>
+              <button
+                onClick={() => void handleRequestAttendance()}
+                className="w-full bg-[#1e3a5f] text-white rounded-2xl py-4 font-semibold transition active:scale-[0.98]"
+              >
+                출석 요청
+              </button>
+              <button onClick={reset} className="w-full text-sm text-gray-400 bg-gray-50 rounded-2xl py-3">
+                ← 다시 입력
+              </button>
+            </div>
           </div>
         )}
 
         {/* 승인 대기 */}
         {step === 'waiting' && selected && (
-          <div className="bg-white rounded-3xl p-8 text-center space-y-3">
-            <div className="text-5xl animate-pulse">⏳</div>
-            <p className="text-xl font-bold text-gray-900">{selected.name}</p>
-            <p className="text-gray-400 text-sm">선생님 확인 중...</p>
+          <div className="bg-white rounded-3xl overflow-hidden shadow-xl">
+            <div className="bg-[#1e3a5f] px-5 py-4 text-center relative overflow-hidden">
+              <div className="absolute inset-0 flex items-center justify-center text-[80px] text-white/[0.04] select-none leading-none">✝</div>
+              <p className="text-blue-300/70 text-[9px] tracking-[0.3em] font-semibold uppercase relative">Catholic Youth</p>
+              <p className="text-white text-xs font-bold mt-0.5 relative">보정성당 청소년부</p>
+            </div>
+
+            <div className="flex justify-center -mt-6 relative z-10 mb-2">
+              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#162d4a] to-[#2d6aab] flex items-center justify-center text-white text-xl font-bold shadow-md ring-2 ring-white animate-pulse">
+                {selected.name[0]}
+              </div>
+            </div>
+
+            <div className="text-center px-6 pb-8">
+              <p className="text-xl font-bold text-gray-900">{selected.name}</p>
+              {selected.grade && <p className="text-xs text-gray-400 mt-0.5">{selected.grade}</p>}
+              <div className="mt-4 flex items-center justify-center gap-2 text-gray-400 text-sm">
+                <div className="w-4 h-4 border-2 border-gray-200 border-t-[#1e3a5f] rounded-full animate-spin" />
+                선생님 확인 중...
+              </div>
+            </div>
           </div>
         )}
 
         {/* 출석 카운터 */}
-        <p className="text-center text-blue-300/70 text-xs">
+        <p className="text-center text-blue-300/50 text-xs">
           오늘 출석 {presentCount}명 / {studentCount}명
         </p>
       </div>
