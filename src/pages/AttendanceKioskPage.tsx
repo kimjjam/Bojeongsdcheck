@@ -102,12 +102,17 @@ export default function AttendanceKioskPage() {
     if (!selected) return
     let cancelled = false
     setDataLoading(true)
-    void Promise.all([
+    void Promise.allSettled([
       getUserAttendanceHistory(selected.uid),
       getAssignment(weekId),
       getWeekData(weekId),
-    ]).then(([history, assignment, weekData]) => {
+    ]).then(([historyResult, assignmentResult, weekDataResult]) => {
       if (cancelled) return
+
+      const history = historyResult.status === 'fulfilled' ? historyResult.value : []
+      const assignment = assignmentResult.status === 'fulfilled' ? assignmentResult.value : null
+      const weekData = weekDataResult.status === 'fulfilled' ? weekDataResult.value : null
+
       const total = history.filter(w => w.present).length
       let streak = 0
       for (const w of history) { if (!w.present) break; streak++ }
@@ -136,8 +141,6 @@ export default function AttendanceKioskPage() {
       }
       setStudentData({ stats: { total, streak, stamps }, role, roleContent, roleContentLabel, snack: weekData?.snack, events: weekData?.events })
       setDataLoading(false)
-    }).catch(() => {
-      if (!cancelled) setDataLoading(false)
     })
     return () => { cancelled = true }
   }, [selected, weekId])
