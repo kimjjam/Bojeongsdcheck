@@ -96,7 +96,7 @@ export default function AssignmentPage() {
 
         <div className="h-px bg-gray-50" />
 
-        {/* 복사 */}
+        {/* 독서 */}
         <div className="space-y-2">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">독서 · 2명</p>
           <div className="space-y-2">
