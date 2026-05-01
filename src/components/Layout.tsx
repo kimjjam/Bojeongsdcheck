@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import type { AppUser } from '../types'
+import { getTeacherTabHref, resolveTeacherTab, teacherTabs } from '../pages/teacher/teacherTabs'
 
 interface Props {
   user: AppUser
@@ -7,36 +8,30 @@ interface Props {
   children: React.ReactNode
 }
 
-const teacherNavItems = [
-  { to: '/teacher/students',   label: '학생',   icon: '👥' },
-  { to: '/teacher/attendance', label: '출석',   icon: '📋' },
-  { to: '/teacher/assignment', label: '역할',   icon: '✝️' },
-  { to: '/teacher/liturgy',    label: '전례',   icon: '📖' },
-  { to: '/teacher/notices',    label: '알림장', icon: '📢' },
-]
-
 export default function Layout({ user, onLogout, children }: Props) {
   const location = useLocation()
-  const navItems = user.role === 'teacher' ? teacherNavItems : []
+  const navItems = user.role === 'teacher'
+    ? teacherTabs.map(item => ({ ...item, to: getTeacherTabHref(item.tab) }))
+    : []
+  const currentTeacherTab = resolveTeacherTab(
+    new URLSearchParams(location.search).get('tab')
+    ?? location.pathname.split('/')[2]
+  )
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-
-      {/* ── 데스크탑 사이드바 ── */}
       <aside className="hidden md:flex flex-col w-56 shrink-0 bg-[#1e3a5f] min-h-screen sticky top-0 h-screen">
-        {/* 로고 */}
         <div className="px-6 py-7 border-b border-white/10">
           <p className="text-[11px] text-blue-300 font-medium tracking-wide">보정성당 주일학교</p>
           <p className="text-white font-bold text-base mt-0.5">{user.name}</p>
         </div>
 
-        {/* 네비 */}
         <nav className="flex-1 px-3 py-4 space-y-1">
           {navItems.map(item => {
-            const active = location.pathname.startsWith(item.to)
+            const active = location.pathname.startsWith('/teacher') && currentTeacherTab === item.tab
             return (
               <Link
-                key={item.to}
+                key={item.tab}
                 to={item.to}
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition ${
                   active
@@ -51,7 +46,6 @@ export default function Layout({ user, onLogout, children }: Props) {
           })}
         </nav>
 
-        {/* 로그아웃 */}
         <div className="px-6 py-5 border-t border-white/10">
           <button
             onClick={onLogout}
@@ -62,10 +56,7 @@ export default function Layout({ user, onLogout, children }: Props) {
         </div>
       </aside>
 
-      {/* ── 모바일 헤더 + 콘텐츠 + 하단 탭 ── */}
       <div className="flex-1 flex flex-col min-w-0">
-
-        {/* 모바일 헤더 */}
         <header className="md:hidden bg-[#1e3a5f] px-5 py-4 flex items-center justify-between sticky top-0 z-10">
           <div>
             <p className="text-[11px] text-blue-300 font-medium tracking-wide">보정성당 주일학교</p>
@@ -79,20 +70,18 @@ export default function Layout({ user, onLogout, children }: Props) {
           </button>
         </header>
 
-        {/* 콘텐츠 */}
         <main className="flex-1 overflow-auto pb-24 md:pb-0">
           <div className="max-w-4xl mx-auto">
             {children}
           </div>
         </main>
 
-        {/* 모바일 하단 탭 */}
         <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex z-10">
           {navItems.map(item => {
-            const active = location.pathname.startsWith(item.to)
+            const active = location.pathname.startsWith('/teacher') && currentTeacherTab === item.tab
             return (
               <Link
-                key={item.to}
+                key={item.tab}
                 to={item.to}
                 className="flex-1 flex flex-col items-center py-2.5 gap-0.5 relative"
               >

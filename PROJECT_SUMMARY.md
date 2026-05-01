@@ -118,6 +118,7 @@ LiturgyRole = 'narrator' | 'acolyte_1' | 'acolyte_2' | 'intercession_1~4' | null
 
 ## 최근 변경 이력
 
+- 2026-05-01 /teacher URL 유지형 탭 구조 추가 (/teacher?tab=students 기준), 기존 /teacher/:tab 진입은 canonical URL로 리다이렉트하도록 변경
 - 2026-05-01 `AttendanceKioskPage` 출석 완료 헤더를 사원증 스타일로 리디자인 — 랜야드 고리·조직 배너·이니셜 아바타·바코드 장식 추가
 - 2026-04-30 `/kiosk`·`/notices` 공개 라우트 삭제, 알림장을 `/attend` 완료 화면에 통합 (NoticesBoardPage 제거)
 - 2026-04-29 Cursor 규칙 파일 `.cursorrules` 추가, AGENTS 기준 계획 승인 절차와 문서 갱신 규칙을 Cursor 환경에도 동일 반영
