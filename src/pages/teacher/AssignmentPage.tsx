@@ -98,7 +98,7 @@ export default function AssignmentPage() {
 
         {/* 복사 */}
         <div className="space-y-2">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">복사 · 2명</p>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">독서 · 2명</p>
           <div className="space-y-2">
             {[0, 1].map(i => (
               <StudentSelect
@@ -110,7 +110,7 @@ export default function AssignmentPage() {
                   acolytes[i] = v
                   setForm({ ...form, acolytes })
                 }}
-                placeholder={`복사 ${i + 1}번`}
+                placeholder={`독서 ${i + 1}번`}
               />
             ))}
           </div>
