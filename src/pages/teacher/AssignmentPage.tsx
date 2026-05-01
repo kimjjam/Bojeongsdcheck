@@ -149,7 +149,7 @@ export default function AssignmentPage() {
           )}
           {form.acolytes.filter(Boolean).map((uid, i) => (
             <div key={i} className="flex items-center justify-between text-sm">
-              <span className="text-gray-400">복사 {i + 1}</span>
+              <span className="text-gray-400">독서 {i + 1}</span>
               <span className="font-semibold text-gray-800">{studentName(uid)}</span>
             </div>
           ))}
