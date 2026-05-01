@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { SAINTS_FEAST_DAYS } from '../lib/saints'
 import {
   findKioskStudentsByBirthDate,
   getAssignment,
@@ -14,6 +15,20 @@ import {
   submitPendingAttendance,
 } from '../lib/firestore'
 import type { KioskStudent, LiturgyRole, Notice } from '../types'
+
+function getTodayMMDD(): string {
+  const today = new Date()
+  return String(today.getMonth() + 1).padStart(2, '0') + String(today.getDate()).padStart(2, '0')
+}
+
+function getStudentFeastDayMMDD(student: KioskStudent): string | null {
+  const normalize = (v?: string) => {
+    if (!v) return null
+    const d = v.replace(/\D/g, '')
+    return d.length === 4 ? d : null
+  }
+  return normalize(student.feastDay) ?? normalize(SAINTS_FEAST_DAYS[student.baptismalName ?? ''])
+}
 
 type Step = 'input' | 'select' | 'confirm' | 'waiting' | 'done' | 'rejected'
 
@@ -194,6 +209,9 @@ export default function AttendanceKioskPage() {
 
   // ── 완료 화면 (done 또는 이미 출석) ──────────────────────────────────────────
   if ((step === 'done' || (step === 'confirm' && alreadyChecked)) && selected) {
+    const todayMMDD = getTodayMMDD()
+    const isBirthday = selected.birthDate ? selected.birthDate.slice(2, 6) === todayMMDD : false
+    const isFeastDay = getStudentFeastDayMMDD(selected) === todayMMDD
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center pt-8 px-4 pb-10">
         <div className="w-full max-w-sm space-y-3">
@@ -222,13 +240,23 @@ export default function AttendanceKioskPage() {
               <div className="text-center px-6 pb-5 space-y-1">
                 <p className="text-[22px] font-bold text-gray-900 tracking-tight">{selected.name}</p>
                 {selected.grade && <p className="text-xs text-gray-400">{selected.grade}</p>}
-                <div className="pt-2">
+                <div className="pt-2 flex flex-col items-center gap-2">
                   <span className={`inline-flex items-center gap-1 px-5 py-[6px] rounded-full text-[11px] font-bold ${
                     step === 'confirm' ? 'bg-gray-100 text-gray-400' : 'bg-green-500 text-white'
                   }`}>
                     {step !== 'confirm' && '✓ '}
                     {step === 'confirm' ? '이미 출석 완료' : '출석 완료!'}
                   </span>
+                  {isBirthday && (
+                    <span className="inline-flex items-center gap-1.5 px-4 py-[5px] rounded-full text-[11px] font-bold bg-pink-50 text-pink-500">
+                      🎂 생일 축하합니다!
+                    </span>
+                  )}
+                  {isFeastDay && (
+                    <span className="inline-flex items-center gap-1.5 px-4 py-[5px] rounded-full text-[11px] font-bold bg-amber-50 text-amber-500">
+                      ✨ 축일 축하합니다!
+                    </span>
+                  )}
                 </div>
               </div>
 

@@ -140,11 +140,13 @@ export async function findKioskStudentsByBirthDate(birthDate: string): Promise<K
   )
   const snap = await getDocs(studentsQuery)
   return sortUsers(snap.docs.map(d => toAppUser(d.id, d.data())))
-    .map(({ uid, name, grade, birthDate: userBirthDate }) => ({
+    .map(({ uid, name, grade, birthDate: userBirthDate, feastDay, baptismalName }) => ({
       uid,
       name,
       grade,
       birthDate: userBirthDate,
+      feastDay,
+      baptismalName,
     }))
 }
 

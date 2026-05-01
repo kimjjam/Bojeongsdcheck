@@ -19,6 +19,8 @@ export interface KioskStudent {
   name: string
   grade?: string
   birthDate?: string
+  feastDay?: string
+  baptismalName?: string
 }
 
 export interface WeekData {
