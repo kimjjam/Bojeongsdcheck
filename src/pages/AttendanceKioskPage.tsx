@@ -136,6 +136,8 @@ export default function AttendanceKioskPage() {
       }
       setStudentData({ stats: { total, streak, stamps }, role, roleContent, roleContentLabel, snack: weekData?.snack, events: weekData?.events })
       setDataLoading(false)
+    }).catch(() => {
+      if (!cancelled) setDataLoading(false)
     })
     return () => { cancelled = true }
   }, [selected, weekId])
