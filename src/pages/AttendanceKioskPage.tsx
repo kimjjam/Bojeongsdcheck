@@ -277,39 +277,11 @@ export default function AttendanceKioskPage() {
             </div>
           </div>
 
-          {/* 출석 통계 */}
+          {/* 통계 + 역할 */}
           {dataLoading ? (
             <div className="bg-white rounded-3xl py-8 text-center text-sm text-gray-300">불러오는 중...</div>
           ) : studentData && (
             <>
-              <div className="bg-white rounded-3xl p-5 space-y-4">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">출석 현황</p>
-                <div className="flex gap-3">
-                  <div className="flex-1 bg-orange-50 rounded-2xl p-4 text-center">
-                    <p className="text-2xl font-bold text-orange-500">{studentData.stats.streak}</p>
-                    <p className="text-xs text-orange-400 mt-1">🔥 연속</p>
-                  </div>
-                  <div className="flex-1 bg-blue-50 rounded-2xl p-4 text-center">
-                    <p className="text-2xl font-bold text-blue-500">{studentData.stats.total}</p>
-                    <p className="text-xs text-blue-400 mt-1">✅ 누적</p>
-                  </div>
-                </div>
-                {studentData.stats.stamps.length > 0 && (
-                  <div>
-                    <p className="text-xs text-gray-300 mb-2.5">최근 {studentData.stats.stamps.length}주</p>
-                    <div className="flex gap-1.5 flex-wrap">
-                      {[...studentData.stats.stamps].reverse().map((present, i) => (
-                        <div key={i} className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
-                          present ? 'bg-[#1e3a5f] text-white' : 'bg-gray-100 text-gray-300'
-                        }`}>
-                          {present ? '✓' : ''}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
               {/* 역할 카드 */}
               {studentData.role && (
                 <div className="bg-white rounded-3xl overflow-hidden">
@@ -337,6 +309,35 @@ export default function AttendanceKioskPage() {
                   </div>
                 </div>
               )}
+
+              {/* 출석 통계 */}
+              <div className="bg-white rounded-3xl p-5 space-y-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">출석 현황</p>
+                <div className="flex gap-3">
+                  <div className="flex-1 bg-orange-50 rounded-2xl p-4 text-center">
+                    <p className="text-2xl font-bold text-orange-500">{studentData.stats.streak}</p>
+                    <p className="text-xs text-orange-400 mt-1">🔥 연속</p>
+                  </div>
+                  <div className="flex-1 bg-blue-50 rounded-2xl p-4 text-center">
+                    <p className="text-2xl font-bold text-blue-500">{studentData.stats.total}</p>
+                    <p className="text-xs text-blue-400 mt-1">✅ 누적</p>
+                  </div>
+                </div>
+                {studentData.stats.stamps.length > 0 && (
+                  <div>
+                    <p className="text-xs text-gray-300 mb-2.5">최근 {studentData.stats.stamps.length}주</p>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {[...studentData.stats.stamps].reverse().map((present, i) => (
+                        <div key={i} className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                          present ? 'bg-[#1e3a5f] text-white' : 'bg-gray-100 text-gray-300'
+                        }`}>
+                          {present ? '✓' : ''}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* 간식/행사 */}
               {(studentData.snack || (studentData.events && studentData.events.length > 0)) && (
