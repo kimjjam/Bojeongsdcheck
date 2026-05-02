@@ -169,9 +169,35 @@ export async function saveWeekData(weekId: string, data: Partial<Omit<WeekData, 
   await setDoc(doc(db, 'weeks', weekId), data, { merge: true })
 }
 
+function getUpcomingSaturdays(count = 4): string[] {
+  const result: string[] = []
+  const now = new Date()
+  const daysUntilSat = ((6 - now.getDay()) + 7) % 7 || 7
+  for (let i = 0; i < count; i++) {
+    const d = new Date(now)
+    d.setDate(now.getDate() + daysUntilSat + i * 7)
+    result.push(formatLocalDate(d))
+  }
+  return result
+}
+
 export async function getWeekList(): Promise<string[]> {
   const snap = await getDocs(collection(db, 'weeks'))
-  return snap.docs.map(d => d.id).sort().reverse()
+  const existing = snap.docs.map(d => d.id)
+  const upcoming = getUpcomingSaturdays(4)
+  return Array.from(new Set([...existing, ...upcoming])).sort().reverse()
+}
+
+export async function getMultiWeekAttendance(weekIds: string[]): Promise<Record<string, Record<string, boolean>>> {
+  const results = await Promise.all(
+    weekIds.map(w => getAttendance(w).then(records => ({ weekId: w, records })))
+  )
+  const data: Record<string, Record<string, boolean>> = {}
+  results.forEach(({ weekId: w, records }) => {
+    data[w] = {}
+    records.forEach(r => { data[w][r.uid] = r.present })
+  })
+  return data
 }
 
 // ─── Assignment ───────────────────────────────────────────────────────────────
@@ -211,6 +237,7 @@ export async function getKioskSession(): Promise<KioskSession> {
   return {
     isOpen: d.isOpen ?? false,
     openedAt: d.openedAt instanceof Timestamp ? d.openedAt.toDate() : null,
+    activeWeekId: typeof d.activeWeekId === 'string' ? d.activeWeekId : undefined,
   }
 }
 
@@ -218,7 +245,11 @@ export async function setKioskOpen(open: boolean) {
   await setDoc(doc(db, 'settings', 'kiosk'), {
     isOpen: open,
     openedAt: open ? serverTimestamp() : null,
-  })
+  }, { merge: true })
+}
+
+export async function setActiveWeek(weekId: string) {
+  await setDoc(doc(db, 'settings', 'kiosk'), { activeWeekId: weekId }, { merge: true })
 }
 
 export function onKioskSessionChange(cb: (s: KioskSession) => void) {
@@ -228,6 +259,7 @@ export function onKioskSessionChange(cb: (s: KioskSession) => void) {
     cb({
       isOpen: d.isOpen ?? false,
       openedAt: d.openedAt instanceof Timestamp ? d.openedAt.toDate() : null,
+      activeWeekId: typeof d.activeWeekId === 'string' ? d.activeWeekId : undefined,
     })
   })
 }

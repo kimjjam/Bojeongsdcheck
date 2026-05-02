@@ -26,6 +26,7 @@ export interface KioskStudent {
 export interface WeekData {
   id: string
   readings1: string  // 제1독서
+  responsorialPsalm?: string  // 화답송 (제1독서 후)
   readings2: string  // 제2독서
   intercessions: {
     1: string
@@ -65,6 +66,7 @@ export interface Notice {
 export interface KioskSession {
   isOpen: boolean
   openedAt: Date | null
+  activeWeekId?: string
 }
 
 export interface PendingRequest {

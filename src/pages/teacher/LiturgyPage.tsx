@@ -8,6 +8,7 @@ export default function LiturgyPage() {
   const [weekId, setWeekId] = useState(getThisWeekId())
   const [weekList, setWeekList] = useState<string[]>([])
   const [readings1, setReadings1] = useState('')
+  const [responsorialPsalm, setResponsorialPsalm] = useState('')
   const [readings2, setReadings2] = useState('')
   const [intercessions, setIntercessions] = useState<Record<number, string>>({ 1: '', 2: '', 3: '', 4: '' })
   const [saving, setSaving] = useState(false)
@@ -30,10 +31,11 @@ export default function LiturgyPage() {
       if (cancelled) return
       if (data) {
         setReadings1(data.readings1 ?? '')
+        setResponsorialPsalm(data.responsorialPsalm ?? '')
         setReadings2(data.readings2 ?? '')
         setIntercessions(data.intercessions as Record<number, string> ?? { 1: '', 2: '', 3: '', 4: '' })
       } else {
-        setReadings1(''); setReadings2('')
+        setReadings1(''); setResponsorialPsalm(''); setReadings2('')
         setIntercessions({ 1: '', 2: '', 3: '', 4: '' })
       }
     })()
@@ -43,7 +45,9 @@ export default function LiturgyPage() {
   const handleSave = async () => {
     setSaving(true)
     await saveWeekData(weekId, {
-      readings1, readings2,
+      readings1,
+      responsorialPsalm,
+      readings2,
       intercessions: intercessions as { 1: string; 2: string; 3: string; 4: string },
     })
     setSaving(false); setSaved(true)
@@ -76,6 +80,20 @@ export default function LiturgyPage() {
             placeholder="제1독서 내용을 붙여넣으세요"
             value={readings1}
             onChange={e => setReadings1(e.target.value)}
+          />
+        </div>
+
+        <div className="h-px bg-gray-50" />
+
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            화답송 <span className="normal-case font-normal text-gray-300">· 복사 1번 담당</span>
+          </p>
+          <textarea
+            className={`${TEXTAREA} min-h-[80px]`}
+            placeholder="화답송 내용을 붙여넣으세요"
+            value={responsorialPsalm}
+            onChange={e => setResponsorialPsalm(e.target.value)}
           />
         </div>
 

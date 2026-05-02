@@ -57,12 +57,30 @@ interface StudentData {
   role: LiturgyRole
   roleContent: string | null
   roleContentLabel: string
+  responsorialPsalm?: string | null
   snack?: string
   events?: string[]
 }
 
+interface SavedKioskStudent {
+  uid: string
+  name: string
+  grade?: string
+  birthDate?: string
+}
+
+const KIOSK_STORAGE_KEY = 'kioskLastStudent'
+
+function loadSavedStudent(): SavedKioskStudent | null {
+  try {
+    const raw = localStorage.getItem(KIOSK_STORAGE_KEY)
+    return raw ? (JSON.parse(raw) as SavedKioskStudent) : null
+  } catch { return null }
+}
+
 export default function AttendanceKioskPage() {
   const [kioskOpen, setKioskOpen] = useState<boolean | null>(null)
+  const [weekId, setWeekId] = useState(getThisWeekId())
   const [studentCount, setStudentCount] = useState(0)
   const [attendance, setAttendance] = useState<Record<string, boolean>>({})
   const [notices, setNotices] = useState<Notice[]>([])
@@ -74,7 +92,7 @@ export default function AttendanceKioskPage() {
   const [studentData, setStudentData] = useState<StudentData | null>(null)
   const [dataLoading, setDataLoading] = useState(false)
   const [roleModalOpen, setRoleModalOpen] = useState(false)
-  const weekId = getThisWeekId()
+  const [savedStudent, setSavedStudent] = useState<SavedKioskStudent | null>(() => loadSavedStudent())
 
   // /attend 진입 시 키오스크 전용 PWA manifest로 교체
   useEffect(() => {
@@ -101,8 +119,17 @@ export default function AttendanceKioskPage() {
     setTimeout(() => inputRef.current?.focus(), 100)
   }
 
+  // 키오스크 세션 구독 — weekId도 함께 갱신
   useEffect(() => {
-    const unsubscribe = onKioskSessionChange(s => setKioskOpen(s.isOpen))
+    const unsubscribe = onKioskSessionChange(s => {
+      setKioskOpen(s.isOpen)
+      setWeekId(s.activeWeekId ?? getThisWeekId())
+    })
+    return () => unsubscribe()
+  }, [])
+
+  // weekId 변경 시 주차 데이터 로드
+  useEffect(() => {
     let cancelled = false
     void Promise.all([getStudentCountPublic(), getAttendance(weekId), getNotices(5)]).then(([count, records, noticeList]) => {
       if (cancelled) return
@@ -112,7 +139,7 @@ export default function AttendanceKioskPage() {
       setAttendance(map)
       setNotices(noticeList)
     })
-    return () => { cancelled = true; unsubscribe() }
+    return () => { cancelled = true }
   }, [weekId])
 
   // 학생 확정 시 역할·통계 로드
@@ -139,11 +166,16 @@ export default function AttendanceKioskPage() {
       let role: LiturgyRole = null
       let roleContent: string | null = null
       let roleContentLabel = ''
+      let responsorialPsalm: string | null | undefined = undefined
+
       if (assignment) {
         if (assignment.narrator === selected.uid) {
           role = 'narrator'
         } else if (assignment.acolytes[0] === selected.uid) {
-          role = 'acolyte_1'; roleContent = weekData?.readings1 ?? null; roleContentLabel = '제1독서'
+          role = 'acolyte_1'
+          roleContent = weekData?.readings1 ?? null
+          roleContentLabel = '제1독서'
+          responsorialPsalm = weekData?.responsorialPsalm ?? null
         } else if (assignment.acolytes[1] === selected.uid) {
           role = 'acolyte_2'; roleContent = weekData?.readings2 ?? null; roleContentLabel = '제2독서'
         } else {
@@ -157,7 +189,13 @@ export default function AttendanceKioskPage() {
           }
         }
       }
-      setStudentData({ stats: { total, streak, stamps }, role, roleContent, roleContentLabel, snack: weekData?.snack, events: weekData?.events })
+      setStudentData({
+        stats: { total, streak, stamps },
+        role, roleContent, roleContentLabel,
+        responsorialPsalm,
+        snack: weekData?.snack,
+        events: weekData?.events,
+      })
       setDataLoading(false)
     })
     return () => { cancelled = true }
@@ -186,7 +224,20 @@ export default function AttendanceKioskPage() {
   const handleRequestAttendance = async () => {
     if (!selected) return
     await submitPendingAttendance(weekId, selected.uid)
+    // localStorage에 마지막 학생 저장
+    localStorage.setItem(KIOSK_STORAGE_KEY, JSON.stringify({
+      uid: selected.uid,
+      name: selected.name,
+      grade: selected.grade,
+      birthDate: selected.birthDate,
+    }))
+    setSavedStudent({ uid: selected.uid, name: selected.name, grade: selected.grade, birthDate: selected.birthDate })
     setStep('waiting')
+  }
+
+  const handleQuickLogin = (s: SavedKioskStudent) => {
+    setSelected(s as KioskStudent)
+    setStep('confirm')
   }
 
   const alreadyChecked = selected ? attendance[selected.uid] === true : false
@@ -242,25 +293,21 @@ export default function AttendanceKioskPage() {
 
           {/* 사원증 카드 */}
           <div className="flex flex-col items-center">
-            {/* 랜야드 고리 */}
             <div className="w-8 h-8 rounded-full border-[3px] border-gray-300 bg-gray-100 -mb-4 z-10 relative shadow-inner" />
 
             <div className="w-full bg-white rounded-3xl overflow-hidden shadow-lg border border-gray-100">
-              {/* 조직 헤더 */}
               <div className="bg-[#1e3a5f] px-6 pt-8 pb-14 text-center relative overflow-hidden">
                 <div className="absolute inset-0 flex items-center justify-center text-[120px] text-white/[0.04] select-none pointer-events-none leading-none">✝</div>
                 <p className="text-blue-300/70 text-[9px] tracking-[0.3em] font-semibold uppercase relative z-10">Catholic Youth</p>
                 <p className="text-white text-sm font-bold mt-0.5 relative z-10">보정성당 청소년부</p>
               </div>
 
-              {/* 이니셜 아바타 */}
               <div className="flex justify-center -mt-10 relative z-10 mb-3">
                 <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#162d4a] to-[#2d6aab] flex items-center justify-center text-white text-3xl font-bold shadow-lg ring-[3px] ring-white">
                   {selected.name[0]}
                 </div>
               </div>
 
-              {/* 이름 / 학년 / 출석 배지 */}
               <div className="text-center px-6 pb-5 space-y-1">
                 <p className="text-[22px] font-bold text-gray-900 tracking-tight">{selected.name}</p>
                 {selected.grade && <p className="text-xs text-gray-400">{selected.grade}</p>}
@@ -284,7 +331,6 @@ export default function AttendanceKioskPage() {
                 </div>
               </div>
 
-              {/* 티켓 하단: 날짜 + 바코드 장식 */}
               <div className="mx-4 border-t border-dashed border-gray-200 py-3 flex items-center justify-between px-2">
                 <span className="text-[10px] text-gray-300 font-mono tracking-wide">{weekId}</span>
                 <div className="flex items-end gap-[2px]">
@@ -301,7 +347,6 @@ export default function AttendanceKioskPage() {
             <div className="bg-white rounded-3xl py-8 text-center text-sm text-gray-300">불러오는 중...</div>
           ) : studentData && (
             <>
-              {/* 역할 카드 */}
               {studentData.role && (
                 <div className="bg-white rounded-3xl overflow-hidden">
                   <div className="px-5 py-4 border-b border-gray-50 flex items-center gap-2">
@@ -320,7 +365,11 @@ export default function AttendanceKioskPage() {
                         onClick={() => setRoleModalOpen(true)}
                         className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 rounded-2xl text-sm transition active:scale-[0.98]"
                       >
-                        <span className="font-medium text-gray-700">📖 {studentData.roleContentLabel} 보기</span>
+                        <span className="font-medium text-gray-700">
+                          📖 {studentData.role === 'acolyte_1' && studentData.responsorialPsalm !== undefined
+                            ? '제1독서 · 화답송 보기'
+                            : `${studentData.roleContentLabel} 보기`}
+                        </span>
                         <span className="text-gray-400 text-lg">›</span>
                       </button>
                     )}
@@ -328,7 +377,6 @@ export default function AttendanceKioskPage() {
                 </div>
               )}
 
-              {/* 출석 통계 */}
               <div className="bg-white rounded-3xl p-5 space-y-4">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">출석 현황</p>
                 <div className="flex gap-3">
@@ -357,7 +405,6 @@ export default function AttendanceKioskPage() {
                 )}
               </div>
 
-              {/* 간식/행사 */}
               {(studentData.snack || (studentData.events && studentData.events.length > 0)) && (
                 <div className="bg-white rounded-3xl p-5 space-y-3">
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">이번 주 정보</p>
@@ -380,7 +427,6 @@ export default function AttendanceKioskPage() {
             </>
           )}
 
-          {/* 알림장 */}
           {notices.length > 0 && (
             <div className="bg-white rounded-3xl overflow-hidden">
               <div className="px-5 py-4 border-b border-gray-50 flex items-center gap-2">
@@ -413,11 +459,14 @@ export default function AttendanceKioskPage() {
           className="fixed inset-0 z-50 flex flex-col bg-white"
           onClick={() => setRoleModalOpen(false)}
         >
-          {/* 헤더 */}
           <div className="bg-[#1e3a5f] px-5 py-4 flex items-center justify-between shrink-0">
             <div>
               <p className="text-blue-300/70 text-[9px] tracking-[0.2em] uppercase font-semibold">이번 주 전례 담당</p>
-              <p className="text-white text-sm font-bold mt-0.5">{studentData.roleContentLabel}</p>
+              <p className="text-white text-sm font-bold mt-0.5">
+                {studentData.role === 'acolyte_1' && studentData.responsorialPsalm !== undefined
+                  ? '제1독서 · 화답송'
+                  : studentData.roleContentLabel}
+              </p>
             </div>
             <button
               onClick={() => setRoleModalOpen(false)}
@@ -427,17 +476,36 @@ export default function AttendanceKioskPage() {
             </button>
           </div>
 
-          {/* 본문 스크롤 영역 */}
-          <div
-            className="flex-1 overflow-y-auto px-6 py-6"
-            onClick={e => e.stopPropagation()}
-          >
-            <p className="text-gray-700 text-base leading-8 whitespace-pre-wrap">
-              {studentData.roleContent ?? '아직 내용이 입력되지 않았습니다.'}
-            </p>
+          <div className="flex-1 overflow-y-auto" onClick={e => e.stopPropagation()}>
+            {studentData.role === 'acolyte_1' ? (
+              <>
+                <div className="px-6 pt-6 pb-4 space-y-3">
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">제1독서</p>
+                  <p className="text-gray-700 text-base leading-8 whitespace-pre-wrap">
+                    {studentData.roleContent ?? '아직 내용이 입력되지 않았습니다.'}
+                  </p>
+                </div>
+                {studentData.responsorialPsalm !== undefined && (
+                  <>
+                    <div className="h-px bg-gray-100 mx-6" />
+                    <div className="px-6 pt-4 pb-8 space-y-3">
+                      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">화답송</p>
+                      <p className="text-gray-700 text-base leading-8 whitespace-pre-wrap">
+                        {studentData.responsorialPsalm ?? '아직 내용이 입력되지 않았습니다.'}
+                      </p>
+                    </div>
+                  </>
+                )}
+              </>
+            ) : (
+              <div className="px-6 py-6">
+                <p className="text-gray-700 text-base leading-8 whitespace-pre-wrap">
+                  {studentData.roleContent ?? '아직 내용이 입력되지 않았습니다.'}
+                </p>
+              </div>
+            )}
           </div>
 
-          {/* 닫기 버튼 */}
           <div className="px-5 py-4 shrink-0 border-t border-gray-100">
             <button
               onClick={() => setRoleModalOpen(false)}
@@ -469,7 +537,6 @@ export default function AttendanceKioskPage() {
         {/* 생년월일 입력 */}
         {step === 'input' && (
           <div className="bg-white rounded-3xl overflow-hidden shadow-xl">
-            {/* 상단 배너 */}
             <div className="bg-[#1e3a5f] px-5 py-3 flex items-center gap-2">
               <div className="flex gap-1">
                 <div className="w-1.5 h-1.5 rounded-full bg-white/30" />
@@ -480,7 +547,6 @@ export default function AttendanceKioskPage() {
             </div>
 
             <div className="p-6 space-y-5">
-              {/* 아바타 플레이스홀더 */}
               <div className="flex justify-center">
                 <div className="w-16 h-16 rounded-2xl bg-gray-100 border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-300 text-2xl select-none">
                   ?
@@ -513,9 +579,24 @@ export default function AttendanceKioskPage() {
               >
                 본인 확인
               </button>
+
+              {/* 빠른 출석 */}
+              {savedStudent && (
+                <button
+                  onClick={() => handleQuickLogin(savedStudent)}
+                  className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 rounded-2xl transition active:scale-[0.98]"
+                >
+                  <div className="text-left">
+                    <p className="text-xs text-gray-400">이전 학생</p>
+                    <p className="text-sm font-semibold text-gray-700">
+                      {savedStudent.name}{savedStudent.grade ? ` · ${savedStudent.grade}` : ''}
+                    </p>
+                  </div>
+                  <span className="text-[#1e3a5f] text-xs font-semibold">빠른 출석 →</span>
+                </button>
+              )}
             </div>
 
-            {/* 하단 티켓 */}
             <div className="border-t border-dashed border-gray-100 mx-5 mb-4 pt-3 flex justify-between items-center">
               <span className="text-[10px] text-gray-200 font-mono">{weekId}</span>
               <div className="flex gap-[2px] items-end">
@@ -564,14 +645,13 @@ export default function AttendanceKioskPage() {
         {/* 출석 확인 */}
         {step === 'confirm' && selected && !alreadyChecked && (
           <div className="bg-white rounded-3xl overflow-hidden shadow-xl">
-            {/* 미니 ID 카드 헤더 */}
             <div className="bg-[#1e3a5f] px-5 py-4 text-center relative overflow-hidden">
               <div className="absolute inset-0 flex items-center justify-center text-[80px] text-white/[0.04] select-none leading-none">✝</div>
               <p className="text-blue-300/70 text-[9px] tracking-[0.3em] font-semibold uppercase relative">Catholic Youth</p>
               <p className="text-white text-xs font-bold mt-0.5 relative">보정성당 청소년부</p>
             </div>
 
-            <div className="flex justify-center -mt-6 relative z-10 mb-2">
+            <div className="flex justify-center -mt-6 relative z-10 mb-4">
               <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#162d4a] to-[#2d6aab] flex items-center justify-center text-white text-xl font-bold shadow-md ring-2 ring-white">
                 {selected.name[0]}
               </div>
@@ -605,7 +685,7 @@ export default function AttendanceKioskPage() {
               <p className="text-white text-xs font-bold mt-0.5 relative">보정성당 청소년부</p>
             </div>
 
-            <div className="flex justify-center -mt-6 relative z-10 mb-2">
+            <div className="flex justify-center -mt-6 relative z-10 mb-4">
               <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#162d4a] to-[#2d6aab] flex items-center justify-center text-white text-xl font-bold shadow-md ring-2 ring-white animate-pulse">
                 {selected.name[0]}
               </div>
