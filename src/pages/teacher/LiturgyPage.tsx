@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
-import { getWeekData, saveWeekData, getThisWeekId, getWeekList } from '../../lib/firestore'
+import { getWeekData, saveWeekData, getThisWeekId, getWeekList, getKioskSession } from '../../lib/firestore'
 
 const INPUT = 'w-full bg-gray-50 rounded-xl px-4 py-3.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#1e3a5f]/10 border border-transparent focus:border-gray-200 transition'
 const TEXTAREA = `${INPUT} resize-none`
 
 export default function LiturgyPage() {
-  const [weekId, setWeekId] = useState(getThisWeekId())
+  const [weekId, setWeekId] = useState('')
   const [weekList, setWeekList] = useState<string[]>([])
   const [readings1, setReadings1] = useState('')
   const [responsorialPsalm, setResponsorialPsalm] = useState('')
@@ -14,17 +14,21 @@ export default function LiturgyPage() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
+  // 저장된 미사 날짜(activeWeekId)를 기본값으로 사용
   useEffect(() => {
     let cancelled = false
     void (async () => {
-      const list = await getWeekList()
+      const [list, session] = await Promise.all([getWeekList(), getKioskSession()])
       if (cancelled) return
-      setWeekList(Array.from(new Set([getThisWeekId(), ...list])).sort().reverse())
+      const activeId = session.activeWeekId ?? getThisWeekId()
+      setWeekId(activeId)
+      setWeekList(Array.from(new Set([activeId, ...list])).sort().reverse())
     })()
     return () => { cancelled = true }
   }, [])
 
   useEffect(() => {
+    if (!weekId) return
     let cancelled = false
     void (async () => {
       const data = await getWeekData(weekId)

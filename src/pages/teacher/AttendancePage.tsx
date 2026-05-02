@@ -56,9 +56,11 @@ export default function TeacherAttendancePage() {
     void (async () => {
       const [list, kioskSession] = await Promise.all([getWeekList(), getKioskSession()])
       if (cancelled) return
-      setWeekList(Array.from(new Set([getThisWeekId(), ...list])).sort().reverse())
+      const activeId = kioskSession.activeWeekId ?? getThisWeekId()
+      setWeekList(Array.from(new Set([activeId, ...list])).sort().reverse())
       setKioskOpenState(kioskSession.isOpen)
-      setActiveWeekInput(kioskSession.activeWeekId ?? getThisWeekId())
+      setActiveWeekInput(activeId)
+      setWeekId(activeId)
     })()
     return () => { cancelled = true }
   }, [])

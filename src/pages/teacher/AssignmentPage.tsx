@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { getAllUsers, getAssignment, saveAssignment, getThisWeekId, getWeekList } from '../../lib/firestore'
+import { getAllUsers, getAssignment, saveAssignment, getThisWeekId, getWeekList, getKioskSession } from '../../lib/firestore'
 import type { AppUser, Assignment } from '../../types'
 
 const EMPTY_ASSIGNMENT: Omit<Assignment, 'weekId'> = {
@@ -30,24 +30,28 @@ function StudentSelect({ students, value, onChange, placeholder }: StudentSelect
 
 export default function AssignmentPage() {
   const [students, setStudents] = useState<AppUser[]>([])
-  const [weekId, setWeekId] = useState(getThisWeekId())
+  const [weekId, setWeekId] = useState('')
   const [weekList, setWeekList] = useState<string[]>([])
   const [form, setForm] = useState<Omit<Assignment, 'weekId'>>(EMPTY_ASSIGNMENT)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
+  // 저장된 미사 날짜(activeWeekId)를 기본값으로 사용
   useEffect(() => {
     let cancelled = false
     void (async () => {
-      const [all, list] = await Promise.all([getAllUsers(), getWeekList()])
+      const [all, list, session] = await Promise.all([getAllUsers(), getWeekList(), getKioskSession()])
       if (cancelled) return
       setStudents(all.filter(u => u.role === 'student'))
-      setWeekList(Array.from(new Set([getThisWeekId(), ...list])).sort().reverse())
+      const activeId = session.activeWeekId ?? getThisWeekId()
+      setWeekId(activeId)
+      setWeekList(Array.from(new Set([activeId, ...list])).sort().reverse())
     })()
     return () => { cancelled = true }
   }, [])
 
   useEffect(() => {
+    if (!weekId) return
     let cancelled = false
     void (async () => {
       const assignment = await getAssignment(weekId)
