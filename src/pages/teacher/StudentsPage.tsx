@@ -57,6 +57,7 @@ export default function StudentsPage() {
   const [newFeastDay, setNewFeastDay] = useState('')
   const [saving, setSaving] = useState(false)
   const [addError, setAddError] = useState('')
+  const [deleteTarget, setDeleteTarget] = useState<{ uid: string; name: string } | null>(null)
 
   const load = async () => {
     setLoading(true)
@@ -105,9 +106,15 @@ export default function StudentsPage() {
     setEditTarget(null); setSaving(false); await load()
   }
 
-  const handleDelete = async (uid: string, name: string) => {
-    if (!confirm(`${name} 학생을 삭제하시겠습니까?`)) return
-    await deleteUser(uid); await load()
+  const handleDeleteRequest = (uid: string, name: string) => {
+    setDeleteTarget({ uid, name })
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return
+    await deleteUser(deleteTarget.uid)
+    setDeleteTarget(null)
+    await load()
   }
 
   const grouped = students.reduce<Record<string, AppUser[]>>((acc, s) => {
@@ -191,7 +198,7 @@ export default function StudentsPage() {
                           className="text-xs text-gray-400 bg-gray-50 hover:bg-gray-100 px-3 py-1.5 rounded-lg transition"
                         >수정</button>
                         <button
-                          onClick={() => handleDelete(s.uid, s.name)}
+                          onClick={() => handleDeleteRequest(s.uid, s.name)}
                           className="text-xs text-red-400 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition"
                         >삭제</button>
                       </div>
@@ -237,6 +244,35 @@ export default function StudentsPage() {
                 <button type="submit" disabled={saving} className="flex-1 bg-[#1e3a5f] text-white rounded-2xl py-3.5 font-semibold text-sm disabled:opacity-40">{saving ? '등록 중...' : '등록'}</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 삭제 확인 모달 */}
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-6" onClick={() => setDeleteTarget(null)}>
+          <div className="bg-white w-full max-w-xs rounded-3xl p-6 space-y-5" onClick={e => e.stopPropagation()}>
+            <div className="text-center space-y-2">
+              <div className="text-3xl">🗑️</div>
+              <p className="font-bold text-gray-900 text-base">{deleteTarget.name} 학생 삭제</p>
+              <p className="text-sm text-gray-400 leading-relaxed">
+                삭제하면 복구할 수 없습니다.<br />정말 삭제하시겠습니까?
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className="flex-1 bg-gray-100 text-gray-600 rounded-2xl py-3.5 font-medium text-sm"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => void handleDeleteConfirm()}
+                className="flex-1 bg-red-500 text-white rounded-2xl py-3.5 font-semibold text-sm"
+              >
+                삭제
+              </button>
+            </div>
           </div>
         </div>
       )}

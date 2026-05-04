@@ -182,7 +182,9 @@ function getUpcomingSaturdays(count = 4): string[] {
 }
 
 export async function getWeekList(): Promise<string[]> {
-  const snap = await getDocs(collection(db, 'weeks'))
+  const snap = await getDocs(
+    query(collection(db, 'weeks'), orderBy(documentId(), 'desc'), limit(52))
+  )
   const existing = snap.docs.map(d => d.id)
   const upcoming = getUpcomingSaturdays(4)
   return Array.from(new Set([...existing, ...upcoming])).sort().reverse()
@@ -288,9 +290,9 @@ export async function deleteNotice(id: string) {
 
 // ─── Attendance History ───────────────────────────────────────────────────────
 
-export async function getUserAttendanceHistory(uid: string): Promise<{ weekId: string; present: boolean }[]> {
+export async function getUserAttendanceHistory(uid: string, limitCount = 10): Promise<{ weekId: string; present: boolean }[]> {
   const weeksSnap = await getDocs(
-    query(collection(db, 'attendance'), orderBy(documentId(), 'desc'), limit(26))
+    query(collection(db, 'attendance'), orderBy(documentId(), 'desc'), limit(limitCount))
   )
   const results = await Promise.all(
     weeksSnap.docs.map(async weekDoc => {

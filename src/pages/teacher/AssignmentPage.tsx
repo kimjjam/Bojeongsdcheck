@@ -35,6 +35,7 @@ export default function AssignmentPage() {
   const [form, setForm] = useState<Omit<Assignment, 'weekId'>>(EMPTY_ASSIGNMENT)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [duplicateError, setDuplicateError] = useState('')
 
   // 저장된 미사 날짜(activeWeekId)를 기본값으로 사용
   useEffect(() => {
@@ -66,6 +67,24 @@ export default function AssignmentPage() {
   }, [weekId])
 
   const handleSave = async () => {
+    setDuplicateError('')
+    // 중복 배정 검증: 같은 학생이 여러 역할에 배정되면 차단
+    const assignedUids = [
+      form.narrator,
+      ...form.acolytes,
+      ...Object.values(form.intercessions),
+    ].filter(Boolean)
+    const seen = new Set<string>()
+    const dupUids = new Set<string>()
+    for (const uid of assignedUids) {
+      if (seen.has(uid)) dupUids.add(uid)
+      else seen.add(uid)
+    }
+    if (dupUids.size > 0) {
+      const dupNames = [...dupUids].map(uid => studentName(uid)).join(', ')
+      setDuplicateError(`같은 학생이 여러 역할에 배정되었습니다: ${dupNames}`)
+      return
+    }
     setSaving(true)
     await saveAssignment(weekId, form)
     setSaving(false); setSaved(true)
@@ -166,8 +185,14 @@ export default function AssignmentPage() {
         </div>
       )}
 
+      {duplicateError && (
+        <div className="bg-red-50 rounded-2xl px-4 py-3">
+          <p className="text-red-500 text-xs font-medium">⚠️ {duplicateError}</p>
+        </div>
+      )}
+
       <button
-        onClick={handleSave}
+        onClick={() => void handleSave()}
         disabled={saving}
         className="w-full bg-[#1e3a5f] text-white rounded-2xl py-4 font-semibold disabled:opacity-40 transition active:scale-[0.98]"
       >

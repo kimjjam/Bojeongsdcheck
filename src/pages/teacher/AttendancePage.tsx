@@ -41,6 +41,7 @@ export default function TeacherAttendancePage() {
 
   const studentsRef = useRef<AppUser[]>([])
   const prevPendingUidsRef = useRef<Set<string>>(new Set())
+  const notificationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => { studentsRef.current = students }, [students])
 
@@ -79,20 +80,28 @@ export default function TeacherAttendancePage() {
     return () => { cancelled = true }
   }, [weekId])
 
-  // 실시간 대기 목록 + 알림
+  // 실시간 대기 목록 + 배치 알림 (500ms 디바운스 — 동시 다발 요청 시 단일 알림)
   useEffect(() => {
     const unsubscribe = onPendingAttendanceChange(weekId, requests => {
       const pending = requests.filter(r => r.status === 'pending')
 
       if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-        pending.forEach(req => {
-          if (!prevPendingUidsRef.current.has(req.uid)) {
-            const student = studentsRef.current.find(s => s.uid === req.uid)
-            new Notification('출석 대기', {
-              body: student ? `${student.name}(${student.grade ?? ''}) 출석 요청` : '새 출석 요청',
-            })
-          }
-        })
+        const newRequests = pending.filter(req => !prevPendingUidsRef.current.has(req.uid))
+        if (newRequests.length > 0) {
+          if (notificationTimerRef.current) clearTimeout(notificationTimerRef.current)
+          notificationTimerRef.current = setTimeout(() => {
+            if (newRequests.length === 1) {
+              const student = studentsRef.current.find(s => s.uid === newRequests[0].uid)
+              new Notification('출석 대기', {
+                body: student ? `${student.name}(${student.grade ?? ''}) 출석 요청` : '새 출석 요청',
+              })
+            } else {
+              new Notification('출석 대기', {
+                body: `${newRequests.length}명이 출석 요청했습니다`,
+              })
+            }
+          }, 500)
+        }
       }
 
       prevPendingUidsRef.current = new Set(pending.map(r => r.uid))
@@ -323,7 +332,14 @@ export default function TeacherAttendancePage() {
       {view === 'today' && (
         <>
           <div className="flex items-center justify-between px-1">
-            <p className="text-sm font-semibold text-gray-900">학생 목록</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-sm font-semibold text-gray-900">학생 목록</p>
+              {weekId !== activeWeekInput && (
+                <span className="text-[10px] font-semibold bg-amber-50 text-amber-500 px-2 py-0.5 rounded-full">
+                  활성: {activeWeekInput}
+                </span>
+              )}
+            </div>
             <select
               className="bg-gray-100 text-gray-600 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none"
               value={weekId}

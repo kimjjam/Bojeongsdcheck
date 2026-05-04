@@ -118,6 +118,7 @@ LiturgyRole = 'narrator' | 'acolyte_1' | 'acolyte_2' | 'intercession_1~4' | null
 
 ## 최근 변경 이력
 
+- 2026-05-04 실 배포 대비 UX/기능 개선 6종: weekId 변경 시 키오스크 상태 초기화, 출석 요청 이중 제출 방지(isSubmitting), 생년월일 MM/DD 유효성 검증, 역할 배정 중복 학생 차단, 학생 삭제 커스텀 모달, 알림 500ms 배치+활성 주차 배지, 빠른 입력 append 방식, getWeekList/getUserAttendanceHistory 쿼리 최적화
 - 2026-05-03 7가지 이슈 일괄 대응: WeekData에 화답송(responsorialPsalm) 추가, KioskSession에 activeWeekId 추가, AttendancePage에 출석이력 그리드/브라우저 알림/전체 승인 모달/미사 날짜 설정 구현, AttendanceKioskPage에 localStorage 빠른 출석·UI 겹침 수정·activeWeekId 적용, getWeekList에 미래 토요일 자동 포함
 - 2026-05-01 /teacher URL 유지형 탭 구조 추가 (/teacher?tab=students 기준), 기존 /teacher/:tab 진입은 canonical URL로 리다이렉트하도록 변경
 - 2026-05-01 `AttendanceKioskPage` 출석 완료 헤더를 사원증 스타일로 리디자인 — 랜야드 고리·조직 배너·이니셜 아바타·바코드 장식 추가

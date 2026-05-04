@@ -93,6 +93,8 @@ export default function AttendanceKioskPage() {
   const [dataLoading, setDataLoading] = useState(false)
   const [roleModalOpen, setRoleModalOpen] = useState(false)
   const [savedStudent, setSavedStudent] = useState<SavedKioskStudent | null>(() => loadSavedStudent())
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const prevWeekIdRef = useRef<string | null>(null)
 
   // /attend 진입 시 키오스크 전용 PWA manifest로 교체
   useEffect(() => {
@@ -118,6 +120,17 @@ export default function AttendanceKioskPage() {
     setStep('input')
     setTimeout(() => inputRef.current?.focus(), 100)
   }
+
+  // weekId가 바뀌면 진행 중인 출석 흐름 초기화 (잘못된 주차에 출석되는 것 방지)
+  useEffect(() => {
+    if (prevWeekIdRef.current !== null && prevWeekIdRef.current !== weekId) {
+      setSelected(null); setBirthInput(''); setMatches([])
+      setInputError(''); setStudentData(null); setDataLoading(false)
+      setStep('input')
+      setTimeout(() => inputRef.current?.focus(), 100)
+    }
+    prevWeekIdRef.current = weekId
+  }, [weekId])
 
   // 키오스크 세션 구독 — weekId도 함께 갱신
   useEffect(() => {
@@ -212,6 +225,14 @@ export default function AttendanceKioskPage() {
 
   const handleBirthSubmit = async () => {
     if (birthInput.length !== 6) return
+    // 월(MM), 일(DD) 기본 유효성 검증
+    const mm = parseInt(birthInput.slice(2, 4), 10)
+    const dd = parseInt(birthInput.slice(4, 6), 10)
+    if (mm < 1 || mm > 12 || dd < 1 || dd > 31) {
+      setInputError('올바른 생년월일을 입력해주세요.')
+      setBirthInput('')
+      return
+    }
     try {
       const found = await findKioskStudentsByBirthDate(birthInput)
       if (found.length === 0) { setInputError('일치하는 학생이 없습니다.'); setBirthInput(''); return }
@@ -222,17 +243,22 @@ export default function AttendanceKioskPage() {
   }
 
   const handleRequestAttendance = async () => {
-    if (!selected) return
-    await submitPendingAttendance(weekId, selected.uid)
-    // localStorage에 마지막 학생 저장
-    localStorage.setItem(KIOSK_STORAGE_KEY, JSON.stringify({
-      uid: selected.uid,
-      name: selected.name,
-      grade: selected.grade,
-      birthDate: selected.birthDate,
-    }))
-    setSavedStudent({ uid: selected.uid, name: selected.name, grade: selected.grade, birthDate: selected.birthDate })
-    setStep('waiting')
+    if (!selected || isSubmitting) return
+    setIsSubmitting(true)
+    try {
+      await submitPendingAttendance(weekId, selected.uid)
+      // localStorage에 마지막 학생 저장
+      localStorage.setItem(KIOSK_STORAGE_KEY, JSON.stringify({
+        uid: selected.uid,
+        name: selected.name,
+        grade: selected.grade,
+        birthDate: selected.birthDate,
+      }))
+      setSavedStudent({ uid: selected.uid, name: selected.name, grade: selected.grade, birthDate: selected.birthDate })
+      setStep('waiting')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleQuickLogin = (s: SavedKioskStudent) => {
@@ -665,9 +691,10 @@ export default function AttendanceKioskPage() {
               </div>
               <button
                 onClick={() => void handleRequestAttendance()}
-                className="w-full bg-[#1e3a5f] text-white rounded-2xl py-4 font-semibold transition active:scale-[0.98]"
+                disabled={isSubmitting}
+                className="w-full bg-[#1e3a5f] text-white rounded-2xl py-4 font-semibold transition active:scale-[0.98] disabled:opacity-50"
               >
-                출석 요청
+                {isSubmitting ? '요청 중...' : '출석 요청'}
               </button>
               <button onClick={reset} className="w-full text-sm text-gray-400 bg-gray-50 rounded-2xl py-3">
                 ← 다시 입력

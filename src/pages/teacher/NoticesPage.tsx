@@ -128,7 +128,7 @@ export default function TeacherNoticesPage() {
               <button
                 key={msg}
                 type="button"
-                onClick={() => setBody(msg)}
+                onClick={() => setBody(prev => prev.trim() ? `${prev}\n${msg}` : msg)}
                 className="text-left text-xs bg-gray-50 hover:bg-gray-100 text-gray-500 px-3.5 py-2.5 rounded-xl transition"
               >
                 {msg}
